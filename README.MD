@@ -1,6 +1,6 @@
 # Aural - Client
 
-Repositori de l'aplicació.
+Aquest repositori és l'entorn de treball de l'aplicació dedicat a la part de frontend del sistema.
 
 ## Descripció
 
