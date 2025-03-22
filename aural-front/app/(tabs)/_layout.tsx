@@ -1,43 +1,50 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Tabs } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarStyle: { backgroundColor: "#2A496B", height: 80 },
+        tabBarActiveTintColor: "red",
+        tabBarInactiveTintColor: "gray",
+        tabBarShowLabel: true,
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="sessions"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Sessions",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="wifi-tethering" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: "Search",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="search" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="libraries"
+        options={{
+          title: "Libraries",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="grid-view" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
