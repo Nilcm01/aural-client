@@ -1,3 +1,19 @@
+import React from "react";
+import { View, Text, Button } from "react-native";
+
+const MAX_RECENT_CONTENT = 3;
+
 export default function Recents () {
-    
+    return(
+        <View style={{ display: "flex", flexDirection: "row" , marginLeft: 10}}>
+            {Array.from({ length: MAX_RECENT_CONTENT }).map((_, counter) => (
+                <View style={{ display: "flex", flexDirection: "column", justifyContent: "center", margin: 10}} >
+                    <View style={{ backgroundColor: "white", height: 80, width: 80, borderRadius: 2}} />
+                    <Text style={{color: "white", fontWeight:"bold", fontSize: 18, margin: 1}}>Title </Text>
+                    <Text style={{color: "#9A9A9A", fontWeight:"bold", fontSize: 14}}> Artist </Text> 
+                    <Text style={{color: "#9A9A9A", fontWeight:"medium", fontSize: 12}}> Type </Text> 
+                </View>
+            ))}
+        </View>
+    );
 }
