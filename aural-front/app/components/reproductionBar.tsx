@@ -3,8 +3,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 export default function ReproductionBar() {
   return (
-    <View className="reproduction-bar" style={styles.line} />
-    // ToDo: add progression line in sync with the song 
+    <View className="reproduction-bar" style={styles.line} >
+        {/* ToDo: add progression line in sync with the song  */}
+        <View className="reproductionprogress-bar" style={styles.lineProgress} />
+    </View> 
   );
 }
 
@@ -15,6 +17,14 @@ const styles = StyleSheet.create({
       backgroundColor: '#9A9A9A', 
       position: 'absolute',
       zIndex: 10,
-      bottom: 70
+      bottom: 70,
     },
+    lineProgress:{
+      width: '50%', // ToDo: change width to the current song progression
+      height: 4, 
+      backgroundColor: '#F05858', 
+      position: 'absolute',
+      zIndex: 10,
+      left: 0
+    }
 });
