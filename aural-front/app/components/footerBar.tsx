@@ -3,7 +3,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 export function FooterBarButton({ title, onPress }: { title: string; onPress: () => void }) {
     return (
-        <View style={{ backgroundColor: "#2A496B", padding: 4, borderRadius: 4, margin: 2,  }}>
+        <View style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2,  }}>
             {/* FooterBar Button template */}
             <Text style={{
                 color: "white",
@@ -18,9 +18,8 @@ export function FooterBarButton({ title, onPress }: { title: string; onPress: ()
 
 export default function FooterBar() {
     return (
-      <View className="footer-bar" style={{ height: 80, backgroundColor: "#2A496B", 
+      <View className="footer-bar" style={{ height: 80, backgroundColor: "#262626", 
         alignItems: "center", bottom: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 30, 
-        borderTopLeftRadius: 30, borderTopRightRadius: 30,
       }}>
         {/* FooterBar content*/}
         <View style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", marginTop: 10 }}>
