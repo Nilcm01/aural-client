@@ -16,7 +16,7 @@ const styles = StyleSheet.create({
       height: 4, 
       backgroundColor: '#9A9A9A', 
       position: 'absolute',
-      zIndex: 10,
+      zIndex: 1000,
       bottom: 70,
     },
     lineProgress:{

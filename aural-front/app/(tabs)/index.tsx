@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
-import FooterBar from "./components/footerBar";
-import AppBar from "./components/appBar";  
-import HomeMenu from "./components/homeMenu";  
+// import FooterBar from "../components/footerBar";
+import AppBar from "../components/appBar";  
+import HomeMenu from "../components/homeMenu";  
 
 export default function Index() {
   return (
@@ -21,7 +21,7 @@ export default function Index() {
         <AppBar />
         {/* <Text style={{color: "white"}}>Welcome to Aural's first home page!</Text> */}
         <HomeMenu />
-        <FooterBar />
+        {/* <FooterBar /> */}
       </View>
       
     </View>
