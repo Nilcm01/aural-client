@@ -5,7 +5,7 @@ import MinimizedSong from "./minimizedSong";
 export default function SongPlaying() {
   return (
     <View className="reproduction-bar" style={{ height: 60, backgroundColor: "#262626", 
-      alignItems: "center", bottom: 80, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between"
+      alignItems: "center", bottom: 80, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", paddingTop: 5
     }}>
        {/* To be later replaced dynamic title */} 
        <MinimizedSong />
