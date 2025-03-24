@@ -20,6 +20,7 @@ export function FooterBarButton({ title, onPress }: { title: string; onPress: ()
 }
 
 export default function FooterBar() {
+
     return (
         <View style={{display: "flex", flexDirection: "column", backgroundColor: "#262626", justifyContent: "center", alignItems: "center", bottom: 0, position: "absolute", width: "100%"}}>    
             {/* Music playing and actions allowed */}
@@ -43,7 +44,7 @@ export default function FooterBar() {
                 </View>
                 <View style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", marginTop: 10 }}>
                     <MaterialIcons name="search" size={30} color="#9A9A9A"></MaterialIcons>
-                    <FooterBarButton title="Search" onPress={() => {}} />
+                    <FooterBarButton title="Search" onPress={() => {} } />
                 </View>
                 <View style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", marginTop: 10 }}>
                     <MaterialIcons name="grid-view" size={30} color="#9A9A9A"></MaterialIcons>
