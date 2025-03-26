@@ -1,8 +1,8 @@
 // app/(tabs)/LoginPage.tsx
 import React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
-import LoginHeader from './components/loginHeader';
-import LoginForm from './components/loginForm';
+import LoginHeader from '../components/loginHeader';
+import LoginForm from '../components/loginForm';
 
 interface LoginPageProps {
   navigation?: any;

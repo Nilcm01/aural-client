@@ -1,11 +1,11 @@
 // components/LoginHeader.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
 
 const LoginHeader = () => {
   const handleRegisterNavigation = () => {
-    // TODO: Implement navigation to the registration screen
-    console.log('Navigate to Registration');
+    router.push('/(tabs)/registrationPage'); // Navega a la pantalla de registro
   };
 
   return (
