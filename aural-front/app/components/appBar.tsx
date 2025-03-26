@@ -1,10 +1,24 @@
-import { Text, View, Button, Pressable } from "react-native";
+import { Text, View, Button, Pressable,  } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from "expo-router";
+import axios from "axios";
 
 export default function AppBar() {
   const router = useRouter();
+  const [user, setUser] = useState({});
+
+  useEffect (() => {
+    // axios.get("http://localhost:3000/api/v1/users/1")
+    // .then((response) => {
+    //   setUser(response.data);
+    // })
+    // .catch((error) => {
+    //   console.log(error);
+    // });
+
+    // Later acces to --> username, imageURL, email, id
+  });
 
   return (
     <View className="app-bar" style={{ height: 80, backgroundColor: "#262626", 
