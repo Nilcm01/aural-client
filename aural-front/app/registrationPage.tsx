@@ -1,8 +1,8 @@
 // app/(tabs)/RegistrationPage.tsx
 import React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
-import RegistrationHeader from '../components/registrationHeader';
-import RegistrationForm from '../components/registrationForm';
+import RegistrationHeader from '../app/components/registrationHeader';
+import RegistrationForm from '../app/components/registrationForm';
 
 interface RegistrationPageProps {
   navigation?: any;

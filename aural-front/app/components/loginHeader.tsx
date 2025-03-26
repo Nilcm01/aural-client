@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 
 const LoginHeader = () => {
   const handleRegisterNavigation = () => {
-    router.push('/(tabs)/registrationPage'); // Navega a la pantalla de registro
+    router.push("../registrationPage");
   };
 
   return (

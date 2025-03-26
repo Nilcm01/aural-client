@@ -12,7 +12,7 @@ const RegistrationHeader = () => {
   };
   
     const handleLoginNavigation = () => {
-      router.push('/(tabs)/loginScreen');
+    router.push("../loginScreen");
     };
 
   return (
