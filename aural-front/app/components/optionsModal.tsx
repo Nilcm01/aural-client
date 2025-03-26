@@ -23,8 +23,9 @@ const OptionsModal: React.FC<OptionsModalProps> = ({ visible, onClose, onViewPub
           <TouchableOpacity
             style={styles.modalButton}
             onPress={() => {
+              console.log('View Publications pressed');
               onViewPublications();
-              onClose();
+              // Puedes dejar onClose() aquí o llamarlo dentro de onViewPublications en el padre
             }}
           >
             <Text style={styles.modalButtonText}>View Publications</Text>
@@ -33,7 +34,7 @@ const OptionsModal: React.FC<OptionsModalProps> = ({ visible, onClose, onViewPub
             style={styles.modalButton}
             onPress={() => {
               onPublish();
-              onClose();
+              // Igual, opcional llamar a onClose() aquí o en el padre
             }}
           >
             <Text style={styles.modalButtonText}>Publish</Text>

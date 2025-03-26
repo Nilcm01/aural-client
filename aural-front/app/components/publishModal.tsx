@@ -1,16 +1,22 @@
 // components/publishModal.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
 interface PublishModalProps {
   visible: boolean;
   onClose: () => void;
-  publicationText: string;
-  onChangeText: (text: string) => void;
-  onSubmit: () => void;
+  onSubmit: (text: string) => void;
 }
 
-const PublishModal: React.FC<PublishModalProps> = ({ visible, onClose, publicationText, onChangeText, onSubmit }) => {
+const PublishModal: React.FC<PublishModalProps> = ({ visible, onClose, onSubmit }) => {
+  const [localText, setLocalText] = useState<string>('');
+
+  useEffect(() => {
+    if (!visible) {
+      setLocalText('');
+    }
+  }, [visible]);
+
   return (
     <Modal
       visible={visible}
@@ -25,11 +31,11 @@ const PublishModal: React.FC<PublishModalProps> = ({ visible, onClose, publicati
             style={styles.textInput}
             placeholder="Write your publication here..."
             placeholderTextColor="#aaa"
-            value={publicationText}
-            onChangeText={onChangeText}
+            value={localText}
+            onChangeText={setLocalText}
             multiline
           />
-          <TouchableOpacity style={styles.modalButton} onPress={onSubmit}>
+          <TouchableOpacity style={styles.modalButton} onPress={() => onSubmit(localText)}>
             <Text style={styles.modalButtonText}>Submit</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>

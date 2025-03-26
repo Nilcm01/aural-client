@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, Dimensions, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import OpenButton from '../components/openButton';
+// app/(tabs)/SimplePublicationScreen.tsx
+import React, { useState, useCallback } from 'react';
+import { SafeAreaView, StyleSheet, Dimensions, Alert, Text } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import OptionsModal from '../components/optionsModal';
 import PublishModal from '../components/publishModal';
+import PublicationsModal from '../components/publicationsModal';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const initialPublications = [
   { id: '1', text: 'First publication' },
@@ -14,12 +15,18 @@ const initialPublications = [
 ];
 
 const SimplePublicationScreen: React.FC = () => {
-  const [optionsVisible, setOptionsVisible] = useState<boolean>(false);
+  const [optionsVisible, setOptionsVisible] = useState<boolean>(true);
   const [publishVisible, setPublishVisible] = useState<boolean>(false);
+  const [viewVisible, setViewVisible] = useState<boolean>(false);
   const [publicationText, setPublicationText] = useState<string>('');
   const [publications, setPublications] = useState(initialPublications);
 
-  const router = useRouter();
+  // Si quieres que se abra el modal cada vez que se enfoca la pantalla:
+  useFocusEffect(
+    useCallback(() => {
+      setOptionsVisible(true);
+    }, [])
+  );
 
   const handlePublish = () => {
     if (publicationText.trim() === '') {
@@ -28,7 +35,6 @@ const SimplePublicationScreen: React.FC = () => {
     }
     const newPub = { id: (publications.length + 1).toString(), text: publicationText };
     setPublications([newPub, ...publications]);
-    setPublicationText('');
     setPublishVisible(false);
     Alert.alert('Success', 'Publication submitted (simulated)');
     // TODO: Integrate with database to persist the publication
@@ -40,15 +46,15 @@ const SimplePublicationScreen: React.FC = () => {
   };
 
   const handleViewPublications = () => {
-    // Navega a la pantalla de feed para ver publicaciones
-    // TODO: Integrate with database in FeedScreen to display live data
-    router.push('/feedScreen');
+    console.log("View Publications pressed, setting viewVisible true");
+    setViewVisible(true);
+    setOptionsVisible(false);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <OpenButton onPress={() => setOptionsVisible(true)} />
-
+      <Text style={styles.pageTitle}>Simple Publications</Text>
+      
       <OptionsModal
         visible={optionsVisible}
         onClose={() => setOptionsVisible(false)}
@@ -56,13 +62,22 @@ const SimplePublicationScreen: React.FC = () => {
         onPublish={() => setPublishVisible(true)}
       />
 
-      <PublishModal
-        visible={publishVisible}
-        onClose={() => setPublishVisible(false)}
-        publicationText={publicationText}
-        onChangeText={setPublicationText}
-        onSubmit={handlePublish}
-      />
+      {publishVisible && (
+              <PublishModal
+                visible={publishVisible}
+                onClose={() => setPublishVisible(false)}
+                onSubmit={handlePublish}
+              />
+            )}
+
+      {viewVisible && (
+              <PublicationsModal
+                visible={viewVisible}
+                onClose={() => setViewVisible(false)}
+                publications={publications}
+                onReload={handleReload}
+              />
+            )}
     </SafeAreaView>
   );
 };
@@ -73,6 +88,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#141218',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+  },
+  pageTitle: {
+    fontSize: 24,
+    color: '#f05858',
+    marginBottom: 20,
   },
 });
 
