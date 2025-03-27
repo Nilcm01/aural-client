@@ -54,6 +54,18 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="chats"
+          options={{
+            title: "Xats",
+            tabBarIcon: ({ focused }) => (
+              <View style={styles.iconContainer}>
+                <MaterialIcons name="chat" size={30} color={focused ? "white" : "#9A9A9A"} />
+                <FooterBarButton title="Xats" onPress={() => {}} />
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="libraries"
           options={{
             title: "Libraries",
