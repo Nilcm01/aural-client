@@ -1,9 +1,12 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import { router } from "expo-router";
 import { View, Text, Button, ScrollView, Pressable, TextInput } from "react-native";
+import { Modal } from "react-native";
 
-/*  DEBUG: This is a mockup of the data that will be received from the API
+export default function Chat(chatId: string) {
+
+    /*  DEBUG: This is a mockup of the data that will be received from the API
 
     userList is a list of users that are currently in the chat
     userList: [
@@ -37,65 +40,63 @@ import { View, Text, Button, ScrollView, Pressable, TextInput } from "react-nati
     } 
 */
 
-interface User {
-    id: string;
-    username: string;
-}
+    interface User {
+        id: string;
+        username: string;
+    }
 
-interface Message {
-    id: string;
-    user: string;
-    txt: string;
-    dt: string;
-}
+    interface Message {
+        id: string;
+        user: string;
+        txt: string;
+        dt: string;
+    }
 
-interface Metadata {
-    id: string;
-    name: string;
-    private: boolean;
-    userList: User[];
-}
+    interface Metadata {
+        id: string;
+        name: string;
+        private: boolean;
+        userList: User[];
+    }
 
-function refreshMessages(chatData: Metadata) {
-    // TODO: call API to get messages
-    return [
-        { id: "1", user: "1", txt: "Hello, world!", dt: "2024-09-01T12:34:56Z" },
-        { id: "2", user: "2", txt: "Hi there!", dt: "2024-09-01T12:35:00Z" },
-        { id: "3", user: "3", txt: "Greetings!", dt: "2024-09-01T12:35:05Z" },
-        { id: "4", user: "3", txt: "Prova missatge d'abans-d'ahir", dt: "2025-03-25T12:35:05Z" },
-        { id: "5", user: "3", txt: "Prova missatge d'ahir", dt: "2025-03-26T12:35:05Z" },
+    function refreshMessages(chatData: Metadata) {
+        // TODO: call API to get messages
+        return [
+            { id: "1", user: "1", txt: "Hello, world!", dt: "2024-09-01T12:34:56Z" },
+            { id: "2", user: "2", txt: "Hi there!", dt: "2024-09-01T12:35:00Z" },
+            { id: "3", user: "3", txt: "Greetings!", dt: "2024-09-01T12:35:05Z" },
+            { id: "4", user: "3", txt: "Prova missatge d'abans-d'ahir", dt: "2025-03-25T12:35:05Z" },
+            { id: "5", user: "3", txt: "Prova missatge d'ahir", dt: "2025-03-26T12:35:05Z" },
 
-        { id: "1", user: "1", txt: "Hello, world!", dt: "2024-09-01T12:34:56Z" },
-        { id: "2", user: "2", txt: "Hi there!", dt: "2024-09-01T12:35:00Z" },
-        { id: "3", user: "3", txt: "Greetings!", dt: "2024-09-01T12:35:05Z" },
-        { id: "4", user: "3", txt: "Prova missatge d'abans-d'ahir", dt: "2025-03-25T12:35:05Z" },
-        { id: "5", user: "3", txt: "Prova missatge d'ahir", dt: "2025-03-26T12:35:05Z" },
+            { id: "1", user: "1", txt: "Hello, world!", dt: "2024-09-01T12:34:56Z" },
+            { id: "2", user: "2", txt: "Hi there!", dt: "2024-09-01T12:35:00Z" },
+            { id: "3", user: "3", txt: "Greetings!", dt: "2024-09-01T12:35:05Z" },
+            { id: "4", user: "3", txt: "Prova missatge d'abans-d'ahir", dt: "2025-03-25T12:35:05Z" },
+            { id: "5", user: "3", txt: "Prova missatge d'ahir", dt: "2025-03-26T12:35:05Z" },
 
-        { id: "6", user: "3", txt: "Prova missatge d'avui", dt: "2025-03-27T12:35:05Z" }
-    ]
-}
-
-function refreshMetadata(chatId: string) {
-    // TODO: call API to get metadata
-    return {
-        id: "1",
-        name: "Nom del grup",
-        private: false,
-        userList: [
-            { id: "1", username: "User 1" },
-            { id: "2", username: "User 2" },
-            { id: "3", username: "User 3" }
+            { id: "6", user: "3", txt: "Prova missatge d'avui", dt: "2025-03-27T12:35:05Z" }
         ]
     }
-}
 
-function sendMessage(chatId: string, message: string) {
-    // TODO: call API to send message
+    function refreshMetadata(chatId: string) {
+        // TODO: call API to get metadata
+        return {
+            id: "1",
+            name: "Nom del grup",
+            private: false,
+            userList: [
+                { id: "1", username: "User 1" },
+                { id: "2", username: "User 2" },
+                { id: "3", username: "User 3" }
+            ]
+        }
+    }
 
-    (document.getElementById("new_msg") as HTMLInputElement).value = "";
-}
+    function sendMessage(chatId: string, message: string) {
+        // TODO: call API to send message
 
-export default function Chat(chatId: string) {
+        (document.getElementById("new_msg") as HTMLInputElement).value = "";
+    }
 
     // TODO: Population of userList and messages via API
     // DEBUG: Automatic refresh every 2 seconds
@@ -165,42 +166,146 @@ export default function Chat(chatId: string) {
         );
     });
 
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [editedGroupName, setEditedGroupName] = useState(chatData.name);
+    const [editedUserList, setEditedUserList] = useState([...userList]);
+
+    const handleSaveGroupInfo = () => {
+        // TODO: Save the updated group name and user list via API
+        setChatData({ ...chatData, name: editedGroupName, userList: editedUserList });
+        setUserList(editedUserList);
+        setIsModalVisible(false);
+    };
+
+    const handleAddUser = () => {
+        // TODO: Add logic to add a new user
+        const newUser = { id: Date.now().toString(), username: "Nou usuari" }; // Example user
+        setEditedUserList([...editedUserList, newUser]);
+    };
+
+    const handleRemoveUser = (userId: string) => {
+        setEditedUserList(editedUserList.filter(user => user.id !== userId));
+    };
+
+    
     return (
         <View style={{ flex: 1, backgroundColor: "#000000" }}>
             <View className="app-bar" style={{
                 height: 80, backgroundColor: "#262626",
                 alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
             }}>
-                <Pressable onPress={() => { router.back(); }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center" }}>
+                <Pressable onPress={() => { router.push("../(tabs)/chats") }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center" }}>
                     <MaterialIcons name="arrow-back" size={30} color="white" style={{ left: 0 }} />
                 </Pressable>
                 <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}>
-                    {
-                        chatData.name
-                    }
+                    {chatData.name}
                 </Text>
-                <Pressable onPress={() => { }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center" }}>
+                <Pressable onPress={() => setIsModalVisible(true)} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center" }}>
                     <MaterialIcons name="info" size={30} color="white" style={{ left: 0 }} />
                 </Pressable>
             </View>
 
-            <ScrollView
-                style={{ flex: 1, marginTop: 100 }}
-                contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
-                showsVerticalScrollIndicator={false}
-                ref={(ref) => ref?.scrollToEnd({ animated: false })}
+            {!isModalVisible && (
+                <>
+                    <ScrollView
+                        style={{ flex: 1, marginTop: 100 }}
+                        contentContainerStyle={{ flexGrow: 1, justifyContent: "flex-end" }}
+                        showsVerticalScrollIndicator={false}
+                        ref={(ref) => ref?.scrollToEnd({ animated: false })}
+                    >
+                        {messageList}
+                    </ScrollView>
+                    <View style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center", margin: 10, gap: 5 }}>
+                        <TextInput id="new_msg" style={{ flex: 1, backgroundColor: "#262626", color: "white", padding: 10, borderRadius: 10 }} placeholder="Missatge..." />
+                        <Pressable onPress={() => {
+                            sendMessage(chatId, (document.getElementById("new_msg") as HTMLInputElement).value);
+                        }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 10, margin: 2, alignItems: "center", justifyContent: "center" }}>
+                            <MaterialIcons name="send" size={28} color="white" />
+                        </Pressable>
+                    </View>
+                </>
+            )}
+
+            <Modal
+                visible={isModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setIsModalVisible(false)}
             >
-                {messageList}
-            </ScrollView>
-            <View style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center", margin: 10, gap: 5 }}>
-                <TextInput id="new_msg" style={{ flex: 1, backgroundColor: "#262626", color: "white", padding: 10, borderRadius: 10 }} placeholder="Missatge..." />
-                <Pressable onPress={() => {
-                    sendMessage(chatId, (document.getElementById("new_msg") as HTMLInputElement).value);
-                }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 10, margin: 2, alignItems: "center", justifyContent: "center" }}>
-                    <MaterialIcons name="send" size={28} color="white" />
-                </Pressable>
-            </View>
+                <View style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0, 0, 0, 0.8)"
+                }}>
+                    <View style={{
+                        width: "90%",
+                        backgroundColor: "#262626",
+                        padding: 20,
+                        borderRadius: 10
+                    }}>
+                        <Text style={{ color: "white", fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>Informació del xat</Text>
+                        <TextInput
+                            style={{
+                                backgroundColor: "#333333",
+                                color: "white",
+                                padding: 10,
+                                borderRadius: 5,
+                                marginBottom: 20
+                            }}
+                            value={editedGroupName}
+                            onChangeText={setEditedGroupName}
+                            placeholder="Nom del grup"
+                            placeholderTextColor="#A6A6A6"
+                        />
+                        <Text style={{ color: "white", fontSize: 16, fontWeight: "bold", marginBottom: 10 }}>Membres</Text>
+                        {editedUserList.map(user => (
+                            <View key={user.id} style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: 10
+                            }}>
+                                <Text style={{ color: "white" }}>{user.username}</Text>
+                                <Pressable onPress={() => handleRemoveUser(user.id)}>
+                                    <MaterialIcons name="remove-circle" size={24} color="#F05858" />
+                                </Pressable>
+                            </View>
+                        ))}
+                        <Pressable onPress={handleAddUser} style={{
+                            backgroundColor: "#333333",
+                            padding: 10,
+                            borderRadius: 5,
+                            alignItems: "center",
+                            marginBottom: 20
+                        }}>
+                            <Text style={{ color: "white" }}>Afegeix un nou membre</Text>
+                        </Pressable>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                            <Pressable onPress={() => setIsModalVisible(false)} style={{
+                                backgroundColor: "#F05858",
+                                padding: 10,
+                                borderRadius: 5,
+                                alignItems: "center",
+                                flex: 1,
+                                marginRight: 5
+                            }}>
+                                <Text style={{ color: "white" }}>Tanca</Text>
+                            </Pressable>
+                            <Pressable onPress={handleSaveGroupInfo} style={{
+                                backgroundColor: "#4CAF50",
+                                padding: 10,
+                                borderRadius: 5,
+                                alignItems: "center",
+                                flex: 1,
+                                marginLeft: 5
+                            }}>
+                                <Text style={{ color: "white" }}>Desa</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
-
