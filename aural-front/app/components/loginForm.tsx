@@ -1,21 +1,18 @@
 // components/LoginForm.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import axios from 'axios';
 
 interface LoginFormProps {
   navigation?: any;
 }
 
 const LoginForm = ({ navigation }: LoginFormProps) => {
-  const [email, setEmail] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
   const handleLogin = () => {
-    // Aquí se implementaría la autenticación con la base de datos
-    console.log('Email:', email, 'Password:', password);
-    if (navigation) {
-      navigation.navigate('Home');
-    }
+    console.log('Username:', username, 'Password:', password);
   };
 
   return (
@@ -25,8 +22,8 @@ const LoginForm = ({ navigation }: LoginFormProps) => {
         style={styles.input}
         placeholder=""
         placeholderTextColor="#aaa"
-        value={email}
-        onChangeText={setEmail}
+        value={username}
+        onChangeText={setUsername}
         keyboardType="email-address"
         autoCapitalize="none"
       />
