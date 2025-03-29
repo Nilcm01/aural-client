@@ -1,38 +1,78 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
+import React from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from "react-native";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
-interface Friend {
+interface FriendObject {
   id: string;
   name: string;
 }
 
 interface FriendItemProps {
-  friend: Friend;
+  friend: FriendObject | string;
   isRequest?: boolean;
+  currentUserId?: string;
+  onAction?: () => void;
 }
 
-const FriendItem: React.FC<FriendItemProps> = ({ friend, isRequest = false }) => {
-  const handleAccept = () => {
-    // TODO: Integrate with database to update friend request as accepted
-    // Ejemplo: realizar una llamada a la API para aceptar la solicitud de amistad.
-    Alert.alert('Accepted', `You accepted ${friend.name}`);
+const FriendItem: React.FC<FriendItemProps> = ({ friend, isRequest = false, currentUserId = "Test1Friends", onAction }) => {
+  // Si friend es un string, lo usamos directamente; si es un objeto, usamos su propiedad name
+  const friendName = typeof friend === "string" ? friend : friend.name;
+  const friendId = typeof friend === "string" ? friend : friend.id;
+
+  const handleAccept = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/items/accept-friend-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId: currentUserId,
+          friendId: friendId
+        })
+      });
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      Alert.alert("Accepted", `You accepted ${friendName}`);
+      if (onAction) onAction();
+    } catch (error) {
+      console.error("Error accepting friend request", error);
+      Alert.alert("Error", "Failed to accept friend request.");
+    }
   };
 
-  const handleReject = () => {
-    // TODO: Integrate with database to update friend request as rejected
-    // Ejemplo: realizar una llamada a la API para rechazar la solicitud de amistad.
-    Alert.alert('Rejected', `You rejected ${friend.name}`);
+  const handleReject = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/items/reject-friend-request", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId: currentUserId,
+          friendId: friendId
+        })
+      });
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      Alert.alert("Rejected", `You rejected ${friendName}`);
+      if (onAction) onAction();
+    } catch (error) {
+      console.error("Error rejecting friend request", error);
+      Alert.alert("Error", "Failed to reject friend request.");
+    }
   };
 
   return (
     <View style={styles.itemContainer}>
       <View style={styles.avatarPlaceholder}>
-        <Text style={styles.avatarText}>{friend.name.charAt(0)}</Text>
+        <Text style={styles.avatarText}>{friendName.charAt(0)}</Text>
       </View>
       <View style={styles.infoContainer}>
-        <Text style={styles.friendName}>{friend.name}</Text>
+        <Text style={styles.friendName}>{friendName}</Text>
         {isRequest && (
           <View style={styles.buttonsContainer}>
             <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
@@ -50,58 +90,58 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, isRequest = false }) =>
 
 const styles = StyleSheet.create({
   itemContainer: {
-    backgroundColor: '#262626',
+    backgroundColor: "#262626",
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
-    flexDirection: 'row', // avatar e info lado a lado
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center"
   },
   avatarPlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#141218',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
+    backgroundColor: "#141218",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15
   },
   avatarText: {
     fontSize: 24,
-    color: '#f05858',
-    fontWeight: 'bold',
+    color: "#f05858",
+    fontWeight: "bold"
   },
   infoContainer: {
-    flex: 1,
+    flex: 1
   },
   friendName: {
     fontSize: 20,
-    color: 'white',
-    marginBottom: 5,
+    color: "white",
+    marginBottom: 5
   },
   buttonsContainer: {
-    flexDirection: 'row',
+    flexDirection: "row"
   },
   acceptButton: {
     flex: 1,
-    backgroundColor: '#1DB954',
+    backgroundColor: "#1DB954",
     padding: 8,
     borderRadius: 8,
     marginRight: 5,
-    alignItems: 'center',
+    alignItems: "center"
   },
   rejectButton: {
     flex: 1,
-    backgroundColor: '#d9534f',
+    backgroundColor: "#d9534f",
     padding: 8,
     borderRadius: 8,
     marginLeft: 5,
-    alignItems: 'center',
+    alignItems: "center"
   },
   buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
+    color: "white",
+    fontWeight: "bold"
+  }
 });
 
 export default FriendItem;

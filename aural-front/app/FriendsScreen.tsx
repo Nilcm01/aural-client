@@ -1,38 +1,79 @@
-// FriendsScreen.tsx
-import React from 'react';
-import { SafeAreaView, ScrollView, View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView, ScrollView, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import FriendItem from './components/FriendItem';
-// import FooterBar from '../components/footerBar'; // Ajusta la ruta según corresponda
 import AppBar from './components/appBar';
 
 const FriendsScreen = () => {
-  // TODO: Integrate with backend to fetch friend requests and friends list from database.
-  // Reemplazar los datos mock con datos reales.
-  const friendRequests = [
-    { id: '1', name: 'Alice' },
-    { id: '2', name: 'Bob' },
-  ];
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [friendsList, setFriendsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const friendsList = [
-    { id: '3', name: 'Charlie' },
-    { id: '4', name: 'David' },
-    { id: '5', name: 'Eve' },
-  ];
+  // Para propósitos de prueba, usamos "Test1Friends". Cámbialo por el userId actual.
+  const userId = 'Test1Friends';
+
+  const fetchFriendsData = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/items/friends?userId=${userId}`);
+      if (!response.ok) {
+        throw new Error('Error en la respuesta de la red');
+      }
+      const data = await response.json();
+      setFriendRequests(data.friend_requests);
+      setFriendsList(data.friends);
+    } catch (err) {
+      console.error(err);
+      setError('Ocurrió un error al obtener los datos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriendsData();
+  }, [userId]);
+
+  // Función para refrescar los datos, que se pasará a FriendItem
+  const refreshFriendsData = () => {
+    setLoading(true);
+    fetchFriendsData();
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#f05858" />
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <AppBar />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Friend Requests</Text>
-        {friendRequests.map(friend => (
-          <FriendItem key={friend.id} friend={friend} isRequest />
+        {friendRequests.map((friend, index) => (
+          <FriendItem
+            key={index}
+            friend={friend}
+            isRequest
+            currentUserId={userId}
+            onAction={refreshFriendsData}
+          />
         ))}
         <Text style={styles.sectionTitle}>My Friends</Text>
-        {friendsList.map(friend => (
-          <FriendItem key={friend.id} friend={friend} />
+        {friendsList.map((friend, index) => (
+          <FriendItem key={index} friend={friend} currentUserId={userId} />
         ))}
       </ScrollView>
-      {/* <FooterBar /> */}
     </SafeAreaView>
   );
 };
@@ -44,14 +85,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
-    paddingBottom: 100, // Deja espacio para el FooterBar
+    paddingBottom: 100,
   },
   sectionTitle: {
-    fontSize: 24, // Títulos más grandes
+    fontSize: 24,
     color: '#f05858',
     fontWeight: 'bold',
     marginVertical: 10,
     marginLeft: 10,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
 
