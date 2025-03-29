@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext, ReactNode } from "react";
 export interface TokenData {
     access_token: string;
     refresh_token: string;
-    expires_in: number;
+    expires: string;
 }
 
 interface TokenContextType {

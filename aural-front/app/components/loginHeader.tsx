@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useToken } from "../context/TokenContext"; // Import the TokenContext
+import { router } from "expo-router";
 
 export interface TokenData {
   access_token: string;
@@ -9,8 +11,7 @@ export interface TokenData {
 }
 
 const LoginHeader = () => {
-  const [token, setToken] = useState<TokenData | null>(null);
-
+  const { token, setToken } = useToken();
 
   ///////////////////////////
 
@@ -54,11 +55,7 @@ const LoginHeader = () => {
       const { access_token, refresh_token, expires_in } = response;
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('expires_in', expires_in.toString());
-
-      const now = new Date();
-      const expiry = new Date(now.getTime() + expires_in * 1000);
-      localStorage.setItem('expires', expiry.toISOString());
+      localStorage.setItem('expires', (new Date(Date.now() + expires_in * 1000)).toISOString());
     },
   };
 
@@ -77,15 +74,18 @@ const LoginHeader = () => {
         setToken({
           access_token: token.access_token,
           refresh_token: token.refresh_token,
-          expires_in: token.expires_in,
+          expires: (new Date(Date.now() + token.expires_in * 1000)).toISOString(),
         });
 
         // Remove code from URL so we can refresh correctly.
-        const url = new URL(window.location.href);
+        /*const url = new URL(window.location.href);
         url.searchParams.delete("code");
 
         const updatedUrl = url.search ? url.href : url.href.replace('?', '');
-        window.history.replaceState({}, document.title, updatedUrl);
+        window.history.replaceState({}, document.title, updatedUrl);*/
+
+        // Redirect to home page
+        router.push("/");
       }
     };
 
@@ -220,7 +220,7 @@ const LoginHeader = () => {
           <Text style={styles.tokenText}>Refresh Token:</Text>
           <Text style={styles.token}>{token.refresh_token}</Text>
           <Text style={styles.tokenText}>Expires In:</Text>
-          <Text style={styles.token}>{token.expires_in}</Text>
+          <Text style={styles.token}>{token.expires}</Text>
         </View>
       )}
     </View>
