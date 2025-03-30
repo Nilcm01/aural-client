@@ -69,13 +69,32 @@ const LoginHeader = () => {
       if (code) {
         const token = await getToken(code);
         currentToken.save(token);
+        const user_id = await getUserId();
 
         // Save the token data into the state
         setToken({
           access_token: token.access_token,
           refresh_token: token.refresh_token,
           expires: (new Date(Date.now() + token.expires_in * 1000)).toISOString(),
+          user_id: user_id,
         });
+
+        // Make call to internal API for user data
+        const userName = await getUserName();
+        const urlApi = 'http://localhost:5005/api/items/login-user?userId=' + user_id + '&name=' + userName;
+        // POST params: userId, name
+        const internalApiLogin = await fetch(urlApi, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/txt'
+          },
+          body: new URLSearchParams({
+            userId: user_id,
+            name: userName,
+          })
+        });
+    
+        //console.log("Internal login:", await internalApiLogin.body);
 
         // Remove code from URL so we can refresh correctly.
         /*const url = new URL(window.location.href);
@@ -91,18 +110,6 @@ const LoginHeader = () => {
 
     handleTokenExchange();
   }, [code]);
-
-  // If we have a token, fetch user data
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (currentToken.access_token) {
-        const userData = await getUserData();
-        console.log("User Data:", userData);
-      }
-    };
-
-    fetchUserData();
-  }, [currentToken.access_token]);
 
   async function redirectToSpotifyAuthorize(): Promise<void> {
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -178,6 +185,16 @@ const LoginHeader = () => {
     });
 
     return await response.json();
+  }
+
+  async function getUserId(): Promise<string> {
+    const userData = await getUserData();
+    return userData.id;
+  }
+
+  async function getUserName(): Promise<string> {
+    const userData = await getUserData();
+    return userData.display_name;
   }
 
   // Click handlers

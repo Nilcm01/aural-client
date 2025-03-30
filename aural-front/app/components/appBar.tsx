@@ -17,7 +17,7 @@ export default function AppBar() {
       <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}> Home </Text>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
-          {token ? `Expires: ${token.expires} UTC+0` : "No Token"}
+          {token ? `${token.user_id}` : "No Token"}
         </Text>
         <MaterialIcons
           name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"

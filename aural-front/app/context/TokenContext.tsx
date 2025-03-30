@@ -5,6 +5,7 @@ export interface TokenData {
     access_token: string;
     refresh_token: string;
     expires: string; // ISO string representing the expiration time
+    user_id: string; // Optional user ID
 }
 
 interface TokenContextType {
@@ -153,6 +154,7 @@ async function refreshToken(token: TokenData): Promise<TokenData> {
             access_token: response.access_token,
             refresh_token: response.refresh_token || token.refresh_token, // Use the new refresh token if provided
             expires: new Date(Date.now() + response.expires_in * 1000).toISOString(), // Set the expiration time
+            user_id: token.user_id, // Keep the same user ID
         };
 
         return newToken;
