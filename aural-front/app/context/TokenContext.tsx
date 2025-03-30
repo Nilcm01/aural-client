@@ -6,12 +6,15 @@ export interface TokenData {
     refresh_token: string;
     expires: string; // ISO string representing the expiration time
     user_id: string; // Optional user ID
+    code_verifier?: string; // Optional code verifier for PKCE
 }
 
 interface TokenContextType {
     token: TokenData | null;
     setToken: React.Dispatch<React.SetStateAction<TokenData | null>>;
-    logout: () => Promise<void>; // Logout function
+    logout: () => Promise<void>;
+    setCodeVerifier: (codeVerifier: string) => Promise<void>;
+    getCodeVerifier: () => Promise<string | null>;
 }
 
 const MINS_BEFORE_TO_EXPIRE = 30; // Minutes before expiration to refresh the token
@@ -27,6 +30,8 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
         const loadToken = async () => {
             try {
                 const storedToken = await AsyncStorage.getItem("token");
+                const codeVerifier = await AsyncStorage.getItem("code_verifier");
+
                 if (storedToken) {
                     const parsedToken: TokenData = JSON.parse(storedToken);
 
@@ -46,6 +51,12 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
                         }
                     } else {
                         setToken(parsedToken); // Token is still valid
+                    }
+                } else {
+                    // If no token is found and code verifier exists, clear the code verifier
+                    if (codeVerifier) {
+                        console.log("No token found. Clearing code verifier...");
+                        await AsyncStorage.removeItem("code_verifier");
                     }
                 }
             } catch (error) {
@@ -105,6 +116,7 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
     const logout = async () => {
         try {
             await AsyncStorage.removeItem("token"); // Remove token from AsyncStorage
+            await AsyncStorage.removeItem("code_verifier"); // Remove code verifier from AsyncStorage
             setToken(null); // Clear token from state
             console.log("Logged out successfully.");
         } catch (error) {
@@ -112,8 +124,29 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // Function to set the code verifier
+    const setCodeVerifier = async (codeVerifier: string) => {
+        try {
+            await AsyncStorage.setItem("code_verifier", codeVerifier);
+            console.log("Code verifier saved successfully.");
+        } catch (error) {
+            console.error("Failed to save code verifier:", error);
+        }
+    };
+
+    // Function to get the code verifier
+    const getCodeVerifier = async (): Promise<string | null> => {
+        try {
+            const codeVerifier = await AsyncStorage.getItem("code_verifier");
+            return codeVerifier;
+        } catch (error) {
+            console.error("Failed to retrieve code verifier:", error);
+            return null;
+        }
+    };
+
     return (
-        <TokenContext.Provider value={{ token, setToken, logout }}>
+        <TokenContext.Provider value={{ token, setToken, logout, setCodeVerifier, getCodeVerifier }}>
             {children}
         </TokenContext.Provider>
     );

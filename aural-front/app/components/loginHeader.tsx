@@ -1,19 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useToken } from "../context/TokenContext"; // Import the TokenContext
 import { router } from "expo-router";
 
-export interface TokenData {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
-
 const LoginHeader = () => {
-  const { token, setToken } = useToken();
-
-  ///////////////////////////
+  const { token, setToken, setCodeVerifier, getCodeVerifier } = useToken();
+  const [tryAgain, setTryAgain] = useState(false); // Convert tryAgain to state
 
   // Define types for token response and user data
   interface TokenResponse {
@@ -30,124 +23,103 @@ const LoginHeader = () => {
   }
 
   const clientId: string = 'beebf4e998384c24a1e7caf93cf15b61'; // your clientId
-  const redirectUrl: string = 'http://127.0.0.1:8081/loginScreen'; // your redirect URL - must be localhost URL and/or HTTPS
-
+  const redirectUrl: string = 'http://127.0.0.1:8081/loginScreen'; // your redirect URL
   const authorizationEndpoint: string = "https://accounts.spotify.com/authorize";
   const tokenEndpoint: string = "https://accounts.spotify.com/api/token";
   const scope: string = 'user-read-private user-read-email';
-
-  // Data structure that manages the current active token, caching it in localStorage
-  const currentToken = {
-    get access_token(): string | null {
-      return localStorage.getItem('access_token');
-    },
-    get refresh_token(): string | null {
-      return localStorage.getItem('refresh_token');
-    },
-    get expires_in(): string | null {
-      return localStorage.getItem('expires_in');
-    },
-    get expires(): string | null {
-      return localStorage.getItem('expires');
-    },
-
-    save: function (response: TokenResponse): void {
-      const { access_token, refresh_token, expires_in } = response;
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('refresh_token', refresh_token);
-      localStorage.setItem('expires', (new Date(Date.now() + expires_in * 1000)).toISOString());
-    },
-  };
 
   // On page load, try to fetch auth code from current browser search URL
   const args = new URLSearchParams(window.location.search);
   const code: string | null = args.get('code');
 
+  console.log("Code: ", code);
+  console.log("Token info:", token);
+
   // If we find a code, we're in a callback, do a token exchange
   useEffect(() => {
     const handleTokenExchange = async () => {
       if (code) {
-        const token = await getToken(code);
-        currentToken.save(token);
-        const user_id = await getUserId();
-
-        // Save the token data into the state
-        setToken({
-          access_token: token.access_token,
-          refresh_token: token.refresh_token,
-          expires: (new Date(Date.now() + token.expires_in * 1000)).toISOString(),
-          user_id: user_id,
-        });
-
-        // Make call to internal API for user data
         try {
-          const userName = await getUserName();
-          const urlApi = 'http://localhost:5000/api/items/login-user?userId=' + user_id + '&name=' + userName;
-          const internalApiLogin = await fetch(urlApi, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/txt'
-            },
-            body: new URLSearchParams({
-              userId: user_id,
-              name: userName,
-            })
+          const codeVerifier = await getCodeVerifier(); // Ensure this is awaited
+          console.log("Verifier: ", codeVerifier);
+          
+
+          const token = await getToken(code, codeVerifier as string);
+
+          if (!token || !token.access_token) {
+            console.error("Failed to exchange code for token.");
+            setTryAgain(true); // Update state to show error message
+            return;
+          }
+
+          const user_id = await getUserId(token.access_token);
+
+          // Save the token data into the TokenContext
+          setToken({
+            access_token: token.access_token,
+            refresh_token: token.refresh_token,
+            expires: new Date(Date.now() + token.expires_in * 1000).toISOString(),
+            user_id: user_id,
           });
+
+          // Redirect to home page
+          router.push("/");
         } catch (error) {
-          console.error("Error calling internal API:", error);
+          console.error("Error during token exchange:", error);
+          setTryAgain(true); // Update state to show error message
         }
-
-        //console.log("Internal login:", await internalApiLogin.body);
-
-        // Remove code from URL so we can refresh correctly.
-        /*const url = new URL(window.location.href);
-        url.searchParams.delete("code");
-
-        const updatedUrl = url.search ? url.href : url.href.replace('?', '');
-        window.history.replaceState({}, document.title, updatedUrl);*/
-
-        // Redirect to home page
-        router.push("/");
       }
     };
 
     handleTokenExchange();
   }, [code]);
 
-  async function redirectToSpotifyAuthorize(): Promise<void> {
+  async function generateCodeVerifier(): Promise<string> {
     const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const randomValues = crypto.getRandomValues(new Uint8Array(64));
     const randomString = randomValues.reduce((acc, x) => acc + possible[x % possible.length], "");
 
-    const code_verifier = randomString;
-    const data = new TextEncoder().encode(code_verifier);
+    const codeVerifier = randomString;
+    const data = new TextEncoder().encode(codeVerifier);
     const hashed = await crypto.subtle.digest('SHA-256', data);
 
-    const code_challenge_base64 = btoa(String.fromCharCode(...new Uint8Array(hashed)))
+    const codeChallengeBase64 = btoa(String.fromCharCode(...new Uint8Array(hashed)))
       .replace(/=/g, '')
       .replace(/\+/g, '-')
       .replace(/\//g, '_');
 
-    window.localStorage.setItem('code_verifier', code_verifier);
+    // Save the code verifier using TokenContext and wait for it to complete
+    await setCodeVerifier(codeVerifier);
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Add a 1000ms delay
 
-    const authUrl = new URL(authorizationEndpoint);
-    const params = {
-      response_type: 'code',
-      client_id: clientId,
-      scope: scope,
-      code_challenge_method: 'S256',
-      code_challenge: code_challenge_base64,
-      redirect_uri: redirectUrl,
-    };
+    return codeChallengeBase64;
+  }
 
-    authUrl.search = new URLSearchParams(params).toString();
-    window.location.href = authUrl.toString(); // Redirect the user to the authorization server for login
+  async function redirectToSpotifyAuthorize(): Promise<void> {
+    try {
+      const codeChallengeBase64 = await generateCodeVerifier(); // Generate code verifier and challenge
+
+      const authUrl = new URL(authorizationEndpoint);
+      const params = {
+        response_type: 'code',
+        client_id: clientId,
+        scope: scope,
+        code_challenge_method: 'S256',
+        code_challenge: codeChallengeBase64,
+        redirect_uri: redirectUrl,
+      };
+
+      authUrl.search = new URLSearchParams(params).toString();
+
+      console.log("Redirecting to Spotify login...");
+      window.location.href = authUrl.toString(); // Redirect the user to the authorization server for login
+    } catch (error) {
+      console.error("Error during redirect to Spotify authorize:", error);
+    }
   }
 
   // Spotify API Calls
-  async function getToken(code: string): Promise<TokenResponse> {
-    const code_verifier = localStorage.getItem('code_verifier');
-
+  async function getToken(code: string, codeVerifier: string): Promise<TokenResponse> {
     const response = await fetch(tokenEndpoint, {
       method: 'POST',
       headers: {
@@ -158,46 +130,25 @@ const LoginHeader = () => {
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: redirectUrl,
-        code_verifier: code_verifier || '',
+        code_verifier: codeVerifier,
       }),
     });
 
     return await response.json();
   }
 
-  async function refreshToken(): Promise<TokenResponse> {
-    const response = await fetch(tokenEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        grant_type: 'refresh_token',
-        refresh_token: currentToken.refresh_token || '',
-      }),
-    });
-
-    return await response.json();
-  }
-
-  async function getUserData(): Promise<UserData> {
+  async function getUserData(accessToken: string): Promise<UserData> {
     const response = await fetch("https://api.spotify.com/v1/me", {
       method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + currentToken.access_token },
+      headers: { 'Authorization': 'Bearer ' + accessToken },
     });
 
     return await response.json();
   }
 
-  async function getUserId(): Promise<string> {
-    const userData = await getUserData();
+  async function getUserId(accessToken: string): Promise<string> {
+    const userData = await getUserData(accessToken);
     return userData.id;
-  }
-
-  async function getUserName(): Promise<string> {
-    const userData = await getUserData();
-    return userData.display_name;
   }
 
   // Click handlers
@@ -205,19 +156,7 @@ const LoginHeader = () => {
     await redirectToSpotifyAuthorize();
   }
 
-  async function logoutClick(): Promise<void> {
-    localStorage.clear();
-    window.location.href = redirectUrl;
-  }
-
-  async function refreshTokenClick(): Promise<void> {
-    const token = await refreshToken();
-    currentToken.save(token);
-    console.log("Token refreshed:", token);
-  }
-
   ///////////////////////////
-
 
   return (
     <View style={styles.container}>
@@ -231,13 +170,21 @@ const LoginHeader = () => {
         <MaterialIcons style={styles.icon} name="arrow-forward" size={24} color="white" />
       </TouchableOpacity>
 
+      {/* Show try again only if the variable is true */}
+      {tryAgain && (
+        <Text style={{ color: "red", marginTop: 20 }}>
+          Failed to login, please try again.
+        </Text>
+      )}
+
+      {/* Redirect to Spotify registration page */}
+
       <Text style={styles.redirectText} onPress={() => { }}>
         Don't have a Premium Spotify account? Register on Spotify
       </Text>
     </View>
   );
 };
-
 
 export default LoginHeader;
 
@@ -278,25 +225,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginLeft: 4,
   },
-  tokenContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  tokenText: {
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 5,
-  },
-  token: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    padding: 10,
-    borderWidth: 1,
-    borderRadius: 5,
-    borderColor: '#ccc',
-    width: '80%',
-    textAlign: 'center',
-  },
 });
-
-
