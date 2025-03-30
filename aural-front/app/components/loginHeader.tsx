@@ -201,10 +201,7 @@ const LoginHeader = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome</Text>
-      <Text style={styles.redirectText} onPress={() => { }}>
-        Don't have a Spotify account? Register on Spotify
-      </Text>
+      <Text style={styles.title}>Welcome to Aural</Text>
 
       <TouchableOpacity
         onPress={loginWithSpotifyClick}
@@ -213,16 +210,10 @@ const LoginHeader = () => {
         <Text style={styles.spotify}>Login with Spotify</Text>
         <MaterialIcons style={styles.icon} name="arrow-forward" size={24} color="white" />
       </TouchableOpacity>
-      {token && (
-        <View style={styles.tokenContainer}>
-          <Text style={styles.tokenText}>Access Token:</Text>
-          <Text style={styles.token}>{token.access_token}</Text>
-          <Text style={styles.tokenText}>Refresh Token:</Text>
-          <Text style={styles.token}>{token.refresh_token}</Text>
-          <Text style={styles.tokenText}>Expires In:</Text>
-          <Text style={styles.token}>{token.expires}</Text>
-        </View>
-      )}
+
+      <Text style={styles.redirectText} onPress={() => { }}>
+        Don't have a Premium Spotify account? Register on Spotify
+      </Text>
     </View>
   );
 };
@@ -239,11 +230,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: '#f05858',
     fontWeight: 'bold',
+    marginBottom: 40,
   },
   redirectText: {
     fontSize: 16,
     color: '#1DB954',
     textDecorationLine: 'underline',
+    marginTop: 20,
   },
   spotifyButton: {
     width: 200,

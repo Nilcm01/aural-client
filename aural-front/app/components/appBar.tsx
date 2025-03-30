@@ -5,26 +5,35 @@ import { useRouter } from "expo-router";
 import { useToken } from "../context/TokenContext";
 
 export default function AppBar() {
-  const { token } = useToken();
+  const { token, logout } = useToken();
   const router = useRouter();
 
   return (
-    <View className="app-bar" style={{
+    <View style={{
       height: 80, backgroundColor: "#262626",
       alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
     }}>
       {/* To be later replaced dynamic title */}
       <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}> Home </Text>
-      <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}>
-        {token ? token.expires : "No Token"}
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
+          {token ? `Expires: ${token.expires} UTC+0` : "No Token"}
+        </Text>
         <MaterialIcons
-          name="person"
+          name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
           size={30}
           color="white"
-          style={{ left: 0 }}
-          onPress={() => router.push("/loginScreen")} // Navigate to loginScreen
+          onPress={() => {
+            if (token) {
+              // TODO: Go to profile screen
+              // DEBUG: Logs out the user
+              logout()
+            } else {
+              router.push("/loginScreen"); // Navigate to login screen
+            }
+          }}
         />
-      </Text>
+      </View>
     </View>
   );
 }
