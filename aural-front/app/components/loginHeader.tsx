@@ -80,20 +80,23 @@ const LoginHeader = () => {
         });
 
         // Make call to internal API for user data
-        const userName = await getUserName();
-        const urlApi = 'http://localhost:5005/api/items/login-user?userId=' + user_id + '&name=' + userName;
-        // POST params: userId, name
-        const internalApiLogin = await fetch(urlApi, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/txt'
-          },
-          body: new URLSearchParams({
-            userId: user_id,
-            name: userName,
-          })
-        });
-    
+        try {
+          const userName = await getUserName();
+          const urlApi = 'http://localhost:5005/api/items/login-user?userId=' + user_id + '&name=' + userName;
+          const internalApiLogin = await fetch(urlApi, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/txt'
+            },
+            body: new URLSearchParams({
+              userId: user_id,
+              name: userName,
+            })
+          });
+        } catch (error) {
+          console.error("Error calling internal API:", error);
+        }
+
         //console.log("Internal login:", await internalApiLogin.body);
 
         // Remove code from URL so we can refresh correctly.
