@@ -2,7 +2,6 @@
 import React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import LoginHeader from '../app/components/loginHeader';
-import LoginForm from '../app/components/loginForm';
 import { useEffect, useRef, useState  } from 'react';
 import axios from 'axios';
 
