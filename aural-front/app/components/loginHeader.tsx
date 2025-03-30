@@ -82,7 +82,7 @@ const LoginHeader = () => {
         // Make call to internal API for user data
         try {
           const userName = await getUserName();
-          const urlApi = 'http://localhost:5005/api/items/login-user?userId=' + user_id + '&name=' + userName;
+          const urlApi = 'http://localhost:5000/api/items/login-user?userId=' + user_id + '&name=' + userName;
           const internalApiLogin = await fetch(urlApi, {
             method: 'POST',
             headers: {
