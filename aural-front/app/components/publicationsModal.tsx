@@ -1,5 +1,4 @@
-// components/PublicationsModal.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Modal,
   View,
@@ -11,7 +10,8 @@ import {
 
 interface Publication {
   id: string;
-  text: string;
+  content: string;
+  userIdentifier: string;
 }
 
 interface PublicationsModalProps {
@@ -27,7 +27,14 @@ const PublicationsModal: React.FC<PublicationsModalProps> = ({
   publications,
   onReload,
 }) => {
-    console.log("PublicationsModal rendered, visible:", visible);
+  // Llama a onReload cuando el modal se abra
+  useEffect(() => {
+    if (visible) {
+      onReload();
+    }
+  }, [visible]);
+
+  console.log("PublicationsModal rendered, visible:", visible);
   return (
     <Modal
       visible={visible}
@@ -46,7 +53,8 @@ const PublicationsModal: React.FC<PublicationsModalProps> = ({
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.publicationItem}>
-                <Text style={styles.publicationText}>{item.text}</Text>
+                <Text style={styles.publicationUser}>{item.userIdentifier}</Text>
+                <Text style={styles.publicationText}>{item.content}</Text>
               </View>
             )}
           />
@@ -100,6 +108,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#262626',
     marginBottom: 10,
+  },
+  publicationUser: {
+    fontSize: 16,
+    color: '#f05858',
+    fontWeight: 'bold',
   },
   publicationText: {
     fontSize: 16,

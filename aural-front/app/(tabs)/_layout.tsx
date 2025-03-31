@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useToken } from "../context/TokenContext";
 import { router, Tabs } from "expo-router";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import CustomFeedButton from "../components/CustomFeedButton";
 import SongPlaying from "../components/songPlaying";
@@ -11,6 +11,11 @@ import PublishModal from "../components/publishModal";
 import PublicationsModal from "../components/publicationsModal";
 import { FooterBarButton } from "../components/footerBar";
 
+// URL del backend
+const GET_PUBLICATIONS_URL = 'http://localhost:5000/api/items/publications';
+const ADD_PUBLICATION_URL = 'http://localhost:5000/api/items/addPublications';
+const GET_USERS_URL = 'http://localhost:5000/api/items/users';
+
 export default function TabsLayout() {
   const { token, loadToken } = useToken();
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +24,8 @@ export default function TabsLayout() {
   const [feedModalVisible, setFeedModalVisible] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publicationsModalVisible, setPublicationsModalVisible] = useState(false);
+  // Estado para almacenar las publicaciones del backend
+  const [publications, setPublications] = useState<any[]>([]);
 
   useEffect(() => {
     const initializeToken = async () => {
@@ -31,9 +38,9 @@ export default function TabsLayout() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -42,12 +49,100 @@ export default function TabsLayout() {
     return null;
   }
 
+  // Función para publicar en el backend
+  const handlePublish = async (text: string) => {
+    if (text.trim() === "") {
+      Alert.alert("Error", "Please enter some text");
+      return;
+    }
+    try {
+      const body = {
+        userId: token.user_id,
+        content: text,
+      };
+      console.log("Enviando publicación:", body);
+      const response = await fetch(ADD_PUBLICATION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Si el backend requiere autenticación:
+          // "Authorization": `Bearer ${token.access_token}`
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      console.log("Respuesta del POST:", data);
+      if (!response.ok) {
+        console.error("Error en publicación:", data);
+        Alert.alert("Error", data.msg || "Error publishing");
+        return;
+      }
+      // Actualiza la lista de publicaciones con la nueva publicación al inicio
+      setPublications([data, ...publications]);
+      Alert.alert("Success", "Publication submitted");
+      setPublishModalVisible(false);
+    } catch (error) {
+      console.error("Error en handlePublish:", error);
+      Alert.alert("Error", "Server error while publishing");
+    }
+  };
+
+  // Función para recargar las publicaciones
+  const handleReload = async () => {
+    try {
+      console.log("Solicitando publicaciones desde:", GET_PUBLICATIONS_URL);
+      const pubResponse = await fetch(GET_PUBLICATIONS_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const pubData = await pubResponse.json();
+      console.log("Respuesta del GET publicaciones:", pubData);
+      if (!pubResponse.ok) {
+        console.error("Error en recarga publicaciones:", pubData);
+        Alert.alert("Error", pubData.msg || "Error reloading publications");
+        return;
+      }
+  
+      // Solicita los usuarios
+      console.log("Solicitando usuarios desde:", GET_USERS_URL);
+      const usersResponse = await fetch(GET_USERS_URL, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const usersData = await usersResponse.json();
+      console.log("Respuesta del GET usuarios:", usersData);
+  
+      // Fusiona cada publicación con el userId (del usuario que coincide)
+      const mergedPublications = pubData.map((pub: any) => {
+        // Se busca un usuario que tenga _id o userId igual a pub.userId
+        const foundUser = usersData.find(
+          (user: any) => user._id === pub.userId || user.userId === pub.userId
+        );
+        return {
+          ...pub,
+          // Si se encuentra el usuario, se usa su propiedad userId (que en tu ejemplo es "testBack")
+          // Si no se encuentra, se deja el valor original de pub.userId
+          userIdentifier: foundUser ? foundUser.userId : pub.userId,
+        };
+      });
+      setPublications(mergedPublications);
+      Alert.alert("Reload", "Feed reloaded");
+    } catch (error) {
+      console.error("Error en handleReload:", error);
+      Alert.alert("Error", "Server error while reloading");
+    }
+  };
+
   const openFeedModal = () => {
     setFeedModalVisible(true);
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -61,11 +156,7 @@ export default function TabsLayout() {
             title: "Home",
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
-                <MaterialIcons
-                  name="home"
-                  size={30}
-                  color={focused ? "white" : "#9A9A9A"}
-                />
+                <MaterialIcons name="home" size={30} color={focused ? "white" : "#9A9A9A"} />
                 <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
                   Home
                 </Text>
@@ -79,11 +170,7 @@ export default function TabsLayout() {
             title: "Sessions",
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
-                <MaterialIcons
-                  name="wifi-tethering"
-                  size={30}
-                  color={focused ? "white" : "#9A9A9A"}
-                />
+                <MaterialIcons name="wifi-tethering" size={30} color={focused ? "white" : "#9A9A9A"} />
                 <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
                   Sessions
                 </Text>
@@ -106,11 +193,7 @@ export default function TabsLayout() {
             title: "Search",
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
-                <MaterialIcons
-                  name="search"
-                  size={30}
-                  color={focused ? "white" : "#9A9A9A"}
-                />
+                <MaterialIcons name="search" size={30} color={focused ? "white" : "#9A9A9A"} />
                 <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
                   Search
                 </Text>
@@ -124,11 +207,7 @@ export default function TabsLayout() {
             title: "Chats",
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
-                <MaterialIcons
-                  name="chat"
-                  size={30}
-                  color={focused ? "white" : "#9A9A9A"}
-                />
+                <MaterialIcons name="chat" size={30} color={focused ? "white" : "#9A9A9A"} />
                 <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
                   Chats
                 </Text>
@@ -142,11 +221,7 @@ export default function TabsLayout() {
             title: "Libraries",
             tabBarIcon: ({ focused }) => (
               <View style={styles.iconContainer}>
-                <MaterialIcons
-                  name="grid-view"
-                  size={30}
-                  color={focused ? "white" : "#9A9A9A"}
-                />
+                <MaterialIcons name="grid-view" size={30} color={focused ? "white" : "#9A9A9A"} />
                 <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
                   Libraries
                 </Text>
@@ -182,8 +257,13 @@ export default function TabsLayout() {
           visible={publishModalVisible}
           onClose={() => setPublishModalVisible(false)}
           onSubmit={(text) => {
-            console.log("Published text:", text);
-            setPublishModalVisible(false);
+            // Validación y llamado a integración
+            if (text.trim() === "") {
+              Alert.alert("Error", "Please enter some text");
+              return;
+            }
+            console.log("Publicando texto:", text);
+            handlePublish(text);
           }}
         />
       )}
@@ -193,13 +273,11 @@ export default function TabsLayout() {
         <PublicationsModal
           visible={publicationsModalVisible}
           onClose={() => setPublicationsModalVisible(false)}
-          publications={[]} // Aquí se pueden pasar datos reales o de prueba
-          onReload={() => {
-            // Implementar lógica de recarga si es necesario
-          }}
+          publications={publications} // Se pasan las publicaciones obtenidas
+          onReload={handleReload}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -244,3 +322,5 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 });
+
+
