@@ -1,23 +1,46 @@
-// app/(tabs)/TabsLayout.tsx
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Tabs, useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import CustomFeedButton from '../components/CustomFeedButton';
-import SongPlaying from '../components/songPlaying';
-import ReproductionBar from '../components/reproductionBar';
-import OptionsModal from '../components/optionsModal';
-import PublishModal from '../components/publishModal';
-import PublicationsModal from '../components/publicationsModal';
-import { FooterBarButton } from '../components/footerBar';
+import { useEffect, useState } from "react";
+import { useToken } from "../context/TokenContext";
+import { router, Tabs } from "expo-router";
+import { View, Text, StyleSheet } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import CustomFeedButton from "../components/CustomFeedButton";
+import SongPlaying from "../components/songPlaying";
+import ReproductionBar from "../components/reproductionBar";
+import OptionsModal from "../components/optionsModal";
+import PublishModal from "../components/publishModal";
+import PublicationsModal from "../components/publicationsModal";
+import { FooterBarButton } from "../components/footerBar";
 
 export default function TabsLayout() {
-  // Estados para controlar los modales
+  const { token, loadToken } = useToken();
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Estados para controlar los modales del feed
   const [feedModalVisible, setFeedModalVisible] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publicationsModalVisible, setPublicationsModalVisible] = useState(false);
 
-  const router = useRouter();
+  useEffect(() => {
+    const initializeToken = async () => {
+      await loadToken(); // Carga el token desde AsyncStorage u otra fuente
+      setIsLoading(false);
+    };
+
+    initializeToken();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!token) {
+    router.push("/loginScreen");
+    return null;
+  }
 
   const openFeedModal = () => {
     setFeedModalVisible(true);
@@ -43,7 +66,9 @@ export default function TabsLayout() {
                   size={30}
                   color={focused ? "white" : "#9A9A9A"}
                 />
-                <FooterBarButton title="Home" onPress={() => {}} />
+                <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
+                  Home
+                </Text>
               </View>
             ),
           }}
@@ -59,12 +84,13 @@ export default function TabsLayout() {
                   size={30}
                   color={focused ? "white" : "#9A9A9A"}
                 />
-                <FooterBarButton title="Sessions" onPress={() => {}} />
+                <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
+                  Sessions
+                </Text>
               </View>
             ),
           }}
         />
-        {/* Pestaña para Feed: no navega, sólo abre el modal */}
         <Tabs.Screen
           name="simplePublication"
           options={{
@@ -85,7 +111,27 @@ export default function TabsLayout() {
                   size={30}
                   color={focused ? "white" : "#9A9A9A"}
                 />
-                <FooterBarButton title="Search" onPress={() => {}} />
+                <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
+                  Search
+                </Text>
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="chat"
+          options={{
+            title: "Chats",
+            tabBarIcon: ({ focused }) => (
+              <View style={styles.iconContainer}>
+                <MaterialIcons
+                  name="chat"
+                  size={30}
+                  color={focused ? "white" : "#9A9A9A"}
+                />
+                <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
+                  Chats
+                </Text>
               </View>
             ),
           }}
@@ -101,7 +147,9 @@ export default function TabsLayout() {
                   size={30}
                   color={focused ? "white" : "#9A9A9A"}
                 />
-                <FooterBarButton title="Libraries" onPress={() => {}} />
+                <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>
+                  Libraries
+                </Text>
               </View>
             ),
           }}
@@ -134,23 +182,20 @@ export default function TabsLayout() {
           visible={publishModalVisible}
           onClose={() => setPublishModalVisible(false)}
           onSubmit={(text) => {
-            // Aquí se recibe el texto ingresado en el modal.
-            // TODO: Implementar la lógica de publicación, por ejemplo, actualizar la BD.
             console.log("Published text:", text);
             setPublishModalVisible(false);
           }}
         />
       )}
 
-
       {/* Modal para ver publicaciones */}
       {publicationsModalVisible && (
         <PublicationsModal
           visible={publicationsModalVisible}
           onClose={() => setPublicationsModalVisible(false)}
-          publications={[]} // Aquí se pasarán los datos reales o mock
+          publications={[]} // Aquí se pueden pasar datos reales o de prueba
           onReload={() => {
-            // TODO: Implement reload logic
+            // Implementar lógica de recarga si es necesario
           }}
         />
       )}
@@ -171,8 +216,31 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     width: "100%",
+    display: "flex",
     flexDirection: "row",
     paddingHorizontal: 30,
     zIndex: 0,
+  },
+  footerButton: {
+    fontSize: 12,
+    color: "white",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  footerButtonSelected: {
+    fontSize: 12,
+    color: "rgb(240, 88, 88)",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#141218",
+  },
+  loadingText: {
+    color: "white",
+    fontSize: 18,
   },
 });
