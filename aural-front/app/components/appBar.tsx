@@ -26,13 +26,17 @@ export default function AppBar() {
           onPress={() => {
             if (token) {
               // TODO: Go to profile screen
-              // DEBUG: Logs out the user
-              logout()
             } else {
               router.push("/loginScreen"); // Navigate to login screen
             }
           }}
         />
+        <MaterialIcons
+        name="close" // Show "person" if token exists, otherwise "login"
+        size={30}
+        color="white"
+        onPress={() => { logout(); }}
+      />
       </View>
     </View>
   );

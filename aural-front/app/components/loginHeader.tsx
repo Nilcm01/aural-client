@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Linking, Image } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useToken } from "../context/TokenContext"; // Import the TokenContext
-import { router } from "expo-router";
 
 const LoginHeader = () => {
   const [tryAgain, setTryAgain] = useState(false); // Convert tryAgain to state
@@ -16,7 +14,31 @@ const LoginHeader = () => {
         response_type: 'code',
         redirect_uri: 'http://127.0.0.1:8081/loginCallback',
         state: Array.from(window.crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join(''),
-        scope: 'user-read-private user-read-email user-library-read playlist-modify-public playlist-modify-private playlist-read-private playlist-read-collaborative',
+        scope: '\
+                  user-read-private\
+                  user-read-email\
+                  \
+                  user-top-read\
+                  user-read-recently-played\
+                  user-read-currently-playing\
+                  user-read-playback-state\
+                  user-modify-playback-state\
+                  user-read-playback-position\
+                  \
+                  playlist-read-private\
+                  playlist-read-collaborative\
+                  playlist-modify-public\
+                  playlist-modify-private\
+                  \
+                  user-library-read\
+                  user-library-modify\
+                  \
+                  user-follow-read\
+                  user-follow-modify\
+                  \
+                  app-remote-control\
+                  streaming\
+                  ',
         show_dialog: 'false',
       };
 
@@ -34,6 +56,8 @@ const LoginHeader = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to Aural</Text>
+
+      <Text style={styles.subtitle}>Login with your Spotify account to access Aural.</Text>
 
       <TouchableOpacity
         onPress={loginWithSpotifyClick}
@@ -74,6 +98,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 40,
   },
+  subtitle: {
+    fontSize: 16,
+    color: 'white',
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
   redirectText: {
     fontSize: 16,
     color: '#1DB954',
@@ -87,6 +117,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1DB954',
     paddingBottom: 10,
     paddingLeft: 15,
+    paddingRight: 15,
     borderRadius: 5,
     flexDirection: 'row',
   },

@@ -1,12 +1,36 @@
+import { useEffect, useState } from "react";
+import { useToken } from "../context/TokenContext";
+import { router, Tabs } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
-import { MaterialIcons } from '@expo/vector-icons';
-import { Tabs } from "expo-router";
-import { FooterBarButton } from '../components/footerBar';
-import MinimizedSong from '../components/minimizedSong';
-import ReproductionBar from '../components/reproductionBar';
-import SongPlaying from '../components/songPlaying';
+import { MaterialIcons } from "@expo/vector-icons";
 
 export default function TabsLayout() {
+  const { token, loadToken } = useToken();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const initializeToken = async () => {
+      await loadToken(); // Force load token from AsyncStorage
+      setIsLoading(false); // Mark loading as complete
+    };
+
+    initializeToken();
+  }, []);
+
+  if (isLoading) {
+    // Show a loading screen while the token is being loaded
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#141218" }}>
+        <Text style={{ color: "white", fontSize: 18 }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!token) {
+    router.push("/loginScreen");
+    return null; // Prevent rendering the tabs if not logged in
+  }
+
   return (
     <Tabs
       screenOptions={{

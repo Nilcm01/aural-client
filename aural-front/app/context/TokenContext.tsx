@@ -78,6 +78,9 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
                         console.log("Token loaded successfully:", parsedToken);
                         setToken(parsedToken); // Token is still valid
                     }
+                } else {
+                    console.log("No token found in AsyncStorage.");
+                    setToken(null); // No token found, set to null
                 }
             } catch (error) {
                 console.error("Failed to load token from AsyncStorage:", error);
@@ -149,12 +152,27 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
-export const useToken = (): TokenContextType => {
+export const useToken = (): TokenContextType & { loadToken: () => Promise<void> } => {
     const context = useContext(TokenContext);
     if (!context) {
         throw new Error("useToken must be used within a TokenProvider");
     }
-    return context;
+
+    const loadToken = async () => {
+        try {
+            const storedToken = await AsyncStorage.getItem("token");
+            if (storedToken) {
+                const parsedToken: TokenData = JSON.parse(storedToken);
+                context.setToken(parsedToken);
+            } else {
+                context.setToken(null);
+            }
+        } catch (error) {
+            console.error("Failed to load token from AsyncStorage:", error);
+        }
+    };
+
+    return { ...context, loadToken };
 };
 
 // Function for refreshing the token
