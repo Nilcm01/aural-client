@@ -18,10 +18,6 @@ const LoginCallback = () => {
                 const error = queryParams?.error;
                 const state = queryParams?.state;
 
-                console.log("Code: ", code);
-                console.log("Error: ", error);
-                console.log("State: ", state);
-
                 if (code && state) {
                     try {
                         const response = await fetch('https://accounts.spotify.com/api/token', {
@@ -46,7 +42,9 @@ const LoginCallback = () => {
                                 headers: { 'Authorization': 'Bearer ' + tokenData.access_token },
                             });
 
-                            const user_id = await userResponse.json().then(data => data.id);
+                            const userData = await userResponse.json();
+                            const user_id = userData.id;
+                            const userName = userData.display_name;
 
                             // Save the token data into the TokenContext
                             setToken({
@@ -55,6 +53,25 @@ const LoginCallback = () => {
                                 expires: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
                                 user_id: user_id,
                             });
+
+                            // Make call to internal API for user data
+                            try {
+                                const urlApi = 'http://localhost:5000/api/items/login-user?userId=' + user_id + '&name=' + userName;
+                                const internalApiLogin = await fetch(urlApi, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/txt'
+                                    },
+                                    body: new URLSearchParams({
+                                        userId: user_id,
+                                        name: userName,
+                                    })
+                                });
+                                const internalApiLoginData = await internalApiLogin.body;
+                                console.log("Internal login:", internalApiLoginData);
+                            } catch (error) {
+                                console.error("Error calling internal API:", error);
+                            }
 
                             // setMessage("Logged in successfully!");
                             setMessage("");

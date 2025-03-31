@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Linking } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useToken } from "../context/TokenContext"; // Import the TokenContext
 import { router } from "expo-router";
@@ -50,9 +50,11 @@ const LoginHeader = () => {
         </Text>
       )}
 
-      {/* Redirect to Spotify registration page */}
+      {/* Redirect to Spotify registration page on new page */}
 
-      <Text style={styles.redirectText} onPress={() => { }}>
+      <Text style={styles.redirectText} onPress={() => { 
+        Linking.openURL('https://www.spotify.com/signup/'); // Open Spotify registration page
+      }}>
         Don't have a Premium Spotify account? Register on Spotify
       </Text>
     </View>
