@@ -2,25 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaView, ScrollView, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import FriendItem from './components/FriendItem';
 import AppBar from './components/appBar';
+import { useToken } from './context/TokenContext';
 
-const FriendsScreen = () => {
-  const [friendRequests, setFriendRequests] = useState([]);
-  const [friendsList, setFriendsList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+const FriendsScreen: React.FC = () => {
+  const { token } = useToken();
+  const [friendRequests, setFriendRequests] = useState<any[]>([]);
+  const [friendsList, setFriendsList] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
 
-  // Para propósitos de prueba, usamos "Test1Friends". Cámbialo por el userId actual.
-  const userId = 'Test1Friends';
+  // Obtenim el user_id del token
+  const userId = token?.user_id || '';
 
   const fetchFriendsData = async () => {
     try {
+      if (!userId) throw new Error("User not authenticated");
       const response = await fetch(`http://localhost:5000/api/items/friends?userId=${userId}`);
-      if (!response.ok) {
-        throw new Error('Error en la respuesta de la red');
-      }
+      if (!response.ok) throw new Error('Error en la respuesta de la red');
       const data = await response.json();
-      setFriendRequests(data.friend_requests);
-      setFriendsList(data.friends);
+
+      setFriendRequests(data.friend_requests || []);
+      setFriendsList(
+        data.friends 
+          ? (Array.isArray(data.friends) ? data.friends : Object.keys(data.friends))
+          : []
+      );
     } catch (err) {
       console.error(err);
       setError('Ocurrió un error al obtener los datos.');
@@ -30,10 +36,9 @@ const FriendsScreen = () => {
   };
 
   useEffect(() => {
-    fetchFriendsData();
+    if (userId) fetchFriendsData();
   }, [userId]);
 
-  // Función para refrescar los datos, que se pasará a FriendItem
   const refreshFriendsData = () => {
     setLoading(true);
     fetchFriendsData();
