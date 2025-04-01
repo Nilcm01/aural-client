@@ -2,7 +2,6 @@ import { Text, View } from "react-native";
 // import FooterBar from "../components/footerBar";
 import AppBar from "../components/appBar";  
 import HomeMenu from "../components/homeMenu";  
-//import RegistrationPage from "../registrationPage";
 
 export default function Index() {
   return (
