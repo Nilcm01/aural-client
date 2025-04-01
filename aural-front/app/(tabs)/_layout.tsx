@@ -35,7 +35,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: "#262626", height: 80 },
+        tabBarStyle: { backgroundColor: "#262626", height: 80, position: "absolute", bottom: 0, width: "100%", display: "flex", flexDirection: "row", zIndex: 0, alignItems: "center", justifyContent: "space-around", borderColor: "none" },
       }}
     >
       <Tabs.Screen
@@ -75,7 +75,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="chat"
+        name="chats"
         options={{
           title: "",
           tabBarIcon: ({ focused }) => (
@@ -105,8 +105,7 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   iconContainer: {
     justifyContent: "center",
-    alignItems: "center",
-    marginTop: 5,
+    alignItems: "center"
   },
   tabBarStyle: {
     height: 110,
@@ -119,6 +118,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     paddingHorizontal: 30,
     zIndex: 0,
+    borderColor: "none"
   },
   footerButton: {
     fontSize: 12,
