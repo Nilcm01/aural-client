@@ -18,11 +18,6 @@ const ProfileScreen = () => {
     console.log('Profile Updated');
   };
 
-  // Password visibility
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
   // Handle navigation to the previous screen
   const goBack = () => {
     router.back();
@@ -52,29 +47,6 @@ const ProfileScreen = () => {
 
       {/* Profile fields */}
       <View style={styles.form}>
-        {/* Username (only read) */}
-        <TextInput
-          style={styles.input}
-          value={username}
-          editable={false} // Not editable
-          placeholder="Username"
-        />
-
-        {/* Password */}
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={[styles.input, styles.passwordInput]}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            secureTextEntry={!showPassword}
-            maxLength={25} // Character limit
-          />
-          <TouchableOpacity onPress={togglePasswordVisibility} style={styles.eyeIcon}>
-            <Icon name={showPassword ? 'eye' : 'eye-off'} size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
         {/* Name */}
         <TextInput
           style={styles.input}

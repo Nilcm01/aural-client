@@ -26,7 +26,7 @@ export default function AppBar() {
     }}>
        {/* To be later replaced dynamic title */} 
       <Text style={{color: "#F05858", fontWeight:"bold", fontSize: 20 }}> Home </Text>
-      <Pressable onPress={() => router.push("../../loginScreen")} style={{backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center"}}>
+      <Pressable onPress={() => router.push("../../profileScreen")} style={{backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center"}}>
         <MaterialIcons name="person" size={30} color="white" style={{left: 0}} />
       </Pressable>
     </View>
