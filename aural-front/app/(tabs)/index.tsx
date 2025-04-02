@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import AppBar from "../components/appBar";  
 import HomeMenu from "../components/homeMenu";  
 
+
 export default function Index() {
   return (
     // This is the main container for the page
