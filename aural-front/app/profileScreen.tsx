@@ -7,14 +7,59 @@ import { useToken } from "./context/TokenContext";
 const ProfileScreen = () => {
   const router = useRouter();
   const { token } = useToken();
+  const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState('');
 
+  // Fetch user profile data when component mounts
+  useEffect(() => {
+    if (token && token.user_id) {
+      fetch(`http://localhost:5000/api/items/profile-info?userId=${token.user_id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          setUsername(data.username);  // Set username (read-only)
+          setName(data.name);
+          setAge(data.age);
+          setDescription(data.description);
+          setProfileImage(data.imageURL);  // Assuming `imageURL` is returned
+        })
+        .catch((error) => console.error("Error fetching profile data:", error));
+    }
+  }, [token]);
+
   // Manage data modification
   const handleSaveChanges = () => {
     console.log('Profile Updated');
+    // Send updated profile data to backend
+    if (token && token.user_id) {
+      fetch('http://localhost:5000/api/items/modify-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: token.user_id,
+          name: name,
+          age: age,
+          description: description,
+          imageURL: profileImage,
+        }),
+      })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Profile updated:", data);
+      })
+      .catch((error) => {
+        console.error("Error updating profile:", error);
+      });
+    }
   };
 
   // Handle navigation to the previous screen
@@ -46,6 +91,14 @@ const ProfileScreen = () => {
 
       {/* Profile fields */}
       <View style={styles.form}>
+        {/* Username (non-editable) */}
+        <TextInput
+          style={styles.input}
+          value={username}
+          editable={false} // username field non-editable
+          placeholder="Username"
+        />
+
         {/* Name */}
         <TextInput
           style={styles.input}
