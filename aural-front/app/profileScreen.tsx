@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from "expo-router";
-import { Text, View, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image, Text, View, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useToken } from "./context/TokenContext";
 
@@ -86,7 +86,14 @@ const ProfileScreen = () => {
 
       {/* Profile photo */}
       <TouchableOpacity style={styles.profileImageContainer}>
-        {/* Add image */}
+        { profileImage ? (
+          <Image source={{ uri: profileImage }} style={styles.profileImage} />
+        ) : (
+          <Image
+            source={{ uri: 'https://static.vecteezy.com/system/resources/previews/009/292/244/non_2x/default-avatar-icon-of-social-media-user-vector.jpg' }}
+            style={styles.profileImage}
+          />
+        )}
       </TouchableOpacity>
 
       {/* Profile fields */}
@@ -171,6 +178,11 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     marginBottom: 20,
     alignSelf: 'center',
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
   },
   input: {
     height: 40,
