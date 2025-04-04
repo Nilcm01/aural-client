@@ -24,7 +24,8 @@ const ProfileScreen = () => {
       })
         .then((response) => response.json())
         .then((data) => {
-          setUsername(data.name);  // Set username (read-only)
+          setUsername(data.username);  // Set username (read-only)
+          setName(data.name);
           setAge(data.age);
           setDescription(data.description);
           setProfileImage(data.imageURL);
@@ -40,7 +41,7 @@ const ProfileScreen = () => {
 
     if (token && token.user_id) {
       fetch(`http://localhost:5000/api/items/modify-profile?userId=${token.user_id}`, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -55,10 +56,6 @@ const ProfileScreen = () => {
       .then((response) => response.json())
       .then((data) => {
         console.log("Profile updated:", data);
-        setAge(data.age);
-        setDescription(data.description);
-        setProfileImage(data.imageURL);
-        Alert.alert("Success", "Profile updated successfully!");
       })
       .catch((error) => {
         console.error("Error updating profile:", error);
