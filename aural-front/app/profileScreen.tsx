@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from "expo-router";
-import { Image, Text, View, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image, Text, View, TextInput, Button, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useToken } from "./context/TokenContext";
 
@@ -25,7 +25,6 @@ const ProfileScreen = () => {
         .then((response) => response.json())
         .then((data) => {
           setUsername(data.name);  // Set username (read-only)
-          // setName(data.username);
           setAge(data.age);
           setDescription(data.description);
           setProfileImage(data.imageURL);
@@ -38,8 +37,9 @@ const ProfileScreen = () => {
   const handleSaveChanges = () => {
     console.log('Profile Updated');
     // Send updated profile data to backend
+
     if (token && token.user_id) {
-      fetch('http://localhost:5000/api/items/modify-profile', {
+      fetch(`http://localhost:5000/api/items/modify-profile?userId=${token.user_id}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,13 +55,14 @@ const ProfileScreen = () => {
       .then((response) => response.json())
       .then((data) => {
         console.log("Profile updated:", data);
-        // setName(data.username);
         setAge(data.age);
         setDescription(data.description);
         setProfileImage(data.imageURL);
+        Alert.alert("Success", "Profile updated successfully!");
       })
       .catch((error) => {
         console.error("Error updating profile:", error);
+        Alert.alert("Error", "There was an issue updating your profile.");
       });
     }
   };
@@ -106,7 +107,7 @@ const ProfileScreen = () => {
         <TextInput
           style={styles.input}
           value={username}
-          editable={false} // username field non-editable
+          editable={false}
           placeholder="Username"
         />
 
@@ -141,7 +142,9 @@ const ProfileScreen = () => {
       </View>
 
       {/* Save Changes button */}
-      <Button title="Save Changes" onPress={handleSaveChanges} />
+      <TouchableOpacity style={styles.saveButton} onPress={handleSaveChanges}>
+        <Text style={styles.saveButtonText}>Save Changes</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -174,9 +177,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   profileImageContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 150,
+    height: 150,
+    borderRadius: 70,
     backgroundColor: '#333',
     borderColor: '#666',
     borderWidth: 0.5,
@@ -184,34 +187,36 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 150,
+    height: 150,
+    borderRadius: 70,
   },
   input: {
     height: 40,
     backgroundColor: '#333',
     color: '#fff',
     paddingLeft: 10,
-    marginBottom: 15,
+    marginBottom: 10,
     borderRadius: 5,
-    width: '85%',
-  },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '85%',
-  },
-  passwordInput: {
-    flex: 1,
-  },
-  eyeIcon: {
-    marginLeft: 10,
-    marginBottom: 15,
+    width: '75%',
   },
   descriptionInput: {
-    height: 100,
+    paddingTop: 5,
+    height: 80,
+  },
+  saveButton: {
+    backgroundColor: '#F05858',
+    paddingVertical: 7.5,
+    paddingHorizontal: 30,
+    borderRadius: 5,
+    alignSelf: 'center',
+    marginTop: 5,
+    width: '30%',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 
