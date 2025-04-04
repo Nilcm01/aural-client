@@ -7,7 +7,7 @@ import { useToken } from "./context/TokenContext";
 const ProfileScreen = () => {
   const router = useRouter();
   const { token } = useToken();
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(token?.user_id);
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [description, setDescription] = useState('');
@@ -24,7 +24,6 @@ const ProfileScreen = () => {
       })
         .then((response) => response.json())
         .then((data) => {
-          setUsername(data.username);  // Set username (read-only)
           setName(data.name);
           setAge(data.age);
           setDescription(data.description);
@@ -66,7 +65,7 @@ const ProfileScreen = () => {
 
   // Handle navigation to the previous screen
   const goBack = () => {
-    router.back();
+    router.push("/");
   };
 
   // Handle opening options menu
