@@ -25,7 +25,7 @@ export default function AppBar() {
           color="white"
           onPress={() => {
             if (token) {
-              // TODO: Go to profile screen
+              router.push("/profileScreen"); // Navigate to profile screen
             } else {
               router.push("/loginScreen"); // Navigate to login screen
             }
