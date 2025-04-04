@@ -24,11 +24,11 @@ const ProfileScreen = () => {
       })
         .then((response) => response.json())
         .then((data) => {
-          setUsername(data.username);  // Set username (read-only)
-          setName(data.name);
+          setUsername(data.name);  // Set username (read-only)
+          // setName(data.username);
           setAge(data.age);
           setDescription(data.description);
-          setProfileImage(data.imageURL);  // Assuming `imageURL` is returned
+          setProfileImage(data.imageURL);
         })
         .catch((error) => console.error("Error fetching profile data:", error));
     }
@@ -55,6 +55,10 @@ const ProfileScreen = () => {
       .then((response) => response.json())
       .then((data) => {
         console.log("Profile updated:", data);
+        // setName(data.username);
+        setAge(data.age);
+        setDescription(data.description);
+        setProfileImage(data.imageURL);
       })
       .catch((error) => {
         console.error("Error updating profile:", error);
