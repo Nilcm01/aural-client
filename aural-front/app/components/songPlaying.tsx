@@ -1,6 +1,8 @@
 import { Text, View, Button } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
 import MinimizedSong from "./minimizedSong";
+import React from "react";
+import RatingAndComment from "./ratingAndComments";
 
 export default function SongPlaying() {
   return (
@@ -11,7 +13,6 @@ export default function SongPlaying() {
        <MinimizedSong />
         {/* When the user is not logged in, song reproduction not available */}
         <MaterialIcons name="play-disabled" size={30} color="white"></MaterialIcons>
-
         {/* Song play Icon */}
         {/* <MaterialIcons name="play-arrow" size={30} color="white"></MaterialIcons> */}
 
