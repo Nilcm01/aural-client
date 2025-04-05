@@ -5,10 +5,10 @@ import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import CustomFeedButton from "../components/CustomFeedButton";
 import SongPlaying from "../components/songPlaying";
-import ReproductionBar from "../components/reproductionBar";
 import OptionsModal from "../components/optionsModal";
 import PublishModal from "../components/publishModal";
 import PublicationsModal from "../components/publicationsModal";
+import ReproductionModal from "../components/reproductionModal";
 import { FooterBarButton } from "../components/footerBar";
 
 // URL del backend
@@ -24,6 +24,7 @@ export default function TabsLayout() {
   const [feedModalVisible, setFeedModalVisible] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publicationsModalVisible, setPublicationsModalVisible] = useState(false);
+
   // Estado para almacenar las publicaciones del backend
   const [publications, setPublications] = useState<any[]>([]);
 
@@ -231,10 +232,6 @@ export default function TabsLayout() {
         />
       </Tabs>
 
-      {/* Componentes globales */}
-      <SongPlaying />
-      <ReproductionBar />
-
       {/* Modal de opciones para Feed */}
       {feedModalVisible && (
         <OptionsModal
@@ -277,6 +274,8 @@ export default function TabsLayout() {
           onReload={handleReload}
         />
       )}
+
+     
     </SafeAreaView>
   );
 }

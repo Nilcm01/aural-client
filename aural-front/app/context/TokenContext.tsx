@@ -43,7 +43,7 @@ interface TokenContextType {
     logout: () => Promise<void>;
 }
 
-const MINS_BEFORE_TO_EXPIRE = 30; // Minutes before expiration to refresh the token
+const MINS_BEFORE_TO_EXPIRE = 10; // Minutes before expiration to refresh the token
 const TOKEN_CHECK_INTERVAL = 1; // Minutes to check for token expiration
 
 const TokenContext = createContext<TokenContextType | undefined>(undefined);
