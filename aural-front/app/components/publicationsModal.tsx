@@ -44,9 +44,9 @@ const PublicationsModal: React.FC<PublicationsModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.title}>Publications Feed</Text>
+          <Text style={styles.title}>Publications feed</Text>
           <TouchableOpacity style={styles.reloadButton} onPress={onReload}>
-            <Text style={styles.reloadButtonText}>Reload Feed</Text>
+            <Text style={styles.reloadButtonText}>Reload feed</Text>
           </TouchableOpacity>
           <FlatList
             data={publications}
