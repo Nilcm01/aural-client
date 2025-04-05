@@ -42,6 +42,29 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
     const [info, setInfo] = useState<{ id: string; name: string; artist: string; album: string; image: string; uri: string }[]>([]); 
     const [currentPosition, setCurrentPosition] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [isShuffle, setShuffle] = useState(false);
+
+    const toggleShuffle = async () => {
+        const newState = !isShuffle;
+        try {
+            const res = await fetch(`https://api.spotify.com/v1/me/player/shuffle?state=${newState}`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (res.ok) {
+                console.log(`Shuffle ${newState ? "enabled" : "disabled"}`);
+                setShuffle(newState); // Update shuffle state
+            } else {
+                console.error("Error setting shuffle:", res.status);
+            }
+        } catch (error) {
+            console.error("Error setting shuffle:", error);
+        }
+    };
 
     const openReproductionModal = () => {
         setReproductionBarVisible(true);
@@ -169,6 +192,8 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
         console.log("Loading Spotify Player...");
     }
 
+
+
     return (
         <View style={[ !loading ? styles.container : styles.loading]}>
             { !loading && 
@@ -200,6 +225,9 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                             <TouchableOpacity onPress={() => player?.nextTrack()}>
                                 <MaterialIcons name="skip-next" size={20} color="white"></MaterialIcons>
                             </TouchableOpacity>
+                            <TouchableOpacity onPress={toggleShuffle}>
+                                <MaterialIcons name="shuffle" size={20} color={isShuffle ? "#1DB954" : "white"} />
+                            </TouchableOpacity>
                         </View>
                         
                 </View>
@@ -222,6 +250,10 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                     onReload={() => {
                         console.log("Reloading reproduction information...");
                     }}
+                    isPaused={isPaused}
+                    player={player}
+                    currentPosition={currentPosition}
+                    duration={duration}
                 />
             )}
 

@@ -4,7 +4,6 @@ import { router, Tabs } from "expo-router";
 import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import CustomFeedButton from "../components/CustomFeedButton";
-import SongPlaying from "../components/songPlaying";
 import OptionsModal from "../components/optionsModal";
 import PublishModal from "../components/publishModal";
 import PublicationsModal from "../components/publicationsModal";

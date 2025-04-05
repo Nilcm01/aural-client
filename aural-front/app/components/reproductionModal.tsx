@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
 import {
   Modal,
@@ -24,12 +25,15 @@ export interface TrackInfo {
   uri: string;
 }
 
-
 interface ReproductionModalProps {
   visible: boolean;
   onClose: () => void;
   onReload: () => void;
   info: TrackInfo[];
+  isPaused: boolean;
+  player: any;
+  currentPosition: number;
+  duration: number;
 }
 
 const ReproductionModal: React.FC<ReproductionModalProps> = ({
@@ -37,6 +41,10 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   onClose,
   onReload,
   info,
+  isPaused,
+  player,
+  currentPosition,
+  duration
 }) => {
   // Llama a onReload cuando el modal se abra
   useEffect(() => {
@@ -69,6 +77,36 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <Text style={{fontSize: 18, color:"white"}}>{track.artist}</Text>
               </View>
             ))}
+          </View>
+
+          <View style={styles.controls}>
+              <TouchableOpacity onPress={() => player?.previousTrack()}>
+                  <MaterialIcons name="skip-previous" size={30} color="white"></MaterialIcons>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => player?.togglePlay()}>
+                  {isPaused?  <MaterialIcons name="play-arrow" size={30} color="white"></MaterialIcons> : <MaterialIcons name="pause" size={30} color="white"></MaterialIcons>  }
+                  {/* When the user is not logged in, song reproduction not available */}
+                  {/* Disable play for non-premium users, ToDo */}
+                  {/* <MaterialIcons name="play-disabled" size={20} color="white"></MaterialIcons> */}
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => player?.nextTrack()}>
+                  <MaterialIcons name="skip-next" size={30} color="white"></MaterialIcons>
+              </TouchableOpacity>
+          </View>
+          {/* <TouchableOpacity onPress={() => player?.shuffle()} style={styles.reloadButton}>
+            <MaterialIcons name="shuffle" size={30} color="white"></MaterialIcons>
+          </TouchableOpacity> */}
+
+          <View style={{ height: 4, backgroundColor: 'gray', width: '100%', marginTop: 8, borderRadius: 2 }}>
+            <View
+              style={{
+                height: 4,
+                backgroundColor: '#F05858',
+                width: `${(currentPosition / duration) * 100}%`,
+              }}
+            />
           </View>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Close</Text>
@@ -131,7 +169,7 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   closeButton: {
-    marginTop: 10,
+    marginTop: 60,
     alignSelf: 'center',
     bottom: 0,
   },
@@ -140,6 +178,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textDecorationLine: 'underline',
   },
+  controls: { flexDirection: 'row', justifyContent: 'space-around', position: 'absolute', width: 100, bottom: 40, alignSelf: 'center', marginBottom: 20 },
+
 });
 
 export default ReproductionModal;
