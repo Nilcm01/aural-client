@@ -1,134 +1,294 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { router } from "expo-router";
 import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { useToken } from "../context/TokenContext";
+import { useFocusEffect } from "@react-navigation/native";
+
+const LHPORT = '5000';
+
+interface Chat {
+    _id: string;
+    name: string;
+    participants: {
+        userId: string;
+        admin: boolean;
+    }[];
+    private: boolean;
+}
 
 const ChatsScreen = () => {
     const { token } = useToken();
-    const [chats, setChats] = useState<any[]>([]);
+    const [chats, setChats] = useState<Chat[]>([]);
     const [loadingChats, setLoadingChats] = useState(true);
     const [loadingFriends, setLoadingFriends] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [friends, setFriends] = useState<any[]>([]);
     const [createChat, setCreateChat] = useState(false);
-    const [listToShow, setListToShow] = useState<any[]>([]);
+
+    const [chatsItems, setChatsItems] = useState<any[]>([]);
+    const [friendsItems, setFriendsItems] = useState<any[]>([]);
 
     if (!token) {
         console.error("Could not get chats: not logged in");
         return [];
     }
 
-    useEffect(() => {
-        const fetchChats = async () => {
-            try {
-                const urlApi = 'http://localhost:5000/api/items/chats-from-user?userId=' + token?.user_id;
-                const getChatsFromUserApi = fetch(urlApi, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+    useFocusEffect(
+        useCallback(() => {
+            const fetchChats = async () => {
+                try {
+                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/chats-from-user?userId=' + token?.user_id;
+                    const getChatsFromUserApi = fetch(urlApi, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
 
-                const result = await getChatsFromUserApi;
-                const chats = await result.json();
-                setChats(chats);
-                setLoadingChats(false);
-                console.log("User chats:", chats);
-            } catch (error) {
-                console.error("Error calling internal API:", error);
-                setError("Error loading the chats module");
-                setLoadingChats(false);
+                    const result = await getChatsFromUserApi;
+                    const chats = await result.json().then((data: any) => {
+                        return data.return;
+                    });
+                    // Order the chats by name
+                    chats.sort((a: Chat, b: Chat) => {
+                        if (a.private && b.private) {
+                            return a.name.localeCompare(b.name);
+                        } else if (a.private) {
+                            return 1;
+                        } else if (b.private) {
+                            return -1;
+                        } else {
+                            return a.name.localeCompare(b.name);
+                        }
+                    }); 
+                    setChats(chats);
+
+                    setChatsItems(
+                        chats.map((chat: Chat) => {
+                            const route = `../components/chat?chatId=${chat._id}`;
+
+                            var friend: string | undefined = undefined;
+                            if (chat.private) {
+                                for (let i = 0; i < chat.participants.length; i++) {
+                                    if (chat.participants[i].userId !== token.user_id) {
+                                        friend = chat.participants[i].userId;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            return (
+                                <Pressable key={chat._id} onPress={() => router.push(route as any)} style={{ backgroundColor: "#262626", padding: 20, borderRadius: 10, margin: 10, alignItems: "flex-start", justifyContent: "flex-start" }}>
+                                    <Text style={{ color: "white", fontSize: 16 }}>
+                                        {
+                                            chat.private ? (
+                                                <Text style={{ color: "white", fontSize: 16 }}>{
+                                                    friend
+                                                }</Text>
+                                            ) : (
+                                                <Text style={{ color: "white", fontSize: 16, fontStyle: "italic" }}>{chat.name}</Text>
+                                            )
+                                        }
+                                    </Text>
+                                </Pressable>
+                            );
+                        })
+                    );
+
+                    setLoadingChats(false);
+                    console.log("Chats loaded: ", chats);
+                } catch (error) {
+                    console.error("Error calling internal API:", error);
+                    setError("Error loading the chats module");
+                    setLoadingChats(false);
+                }
+
+                return true;
+            };
+
+            const fetchFriends = async () => {
+                try {
+                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/friends?userId=' + token?.user_id;
+                    const getFriendsFromUserApi = fetch(urlApi, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const result = await getFriendsFromUserApi;
+                    const friends = await result.json();
+                    // Order the friends by name
+                    friends.friends.sort((a: string, b: string) => {
+                        return a.localeCompare(b);
+                    });
+                    setFriends(friends.friends);
+
+                    setFriendsItems([
+                        <Pressable key={'new-group-chat'} onPress={() => createNewGroupChat()} style={{ backgroundColor: "#262626", padding: 20, borderRadius: 10, margin: 10, alignItems: "flex-start", justifyContent: "flex-start" }}>
+                            <Text style={{ color: "white", fontSize: 16, fontStyle: 'italic' }}>Create new group chat</Text>
+                        </Pressable>,
+                        ...friends.friends.map((friend: String) => {
+                            return (
+                                <Pressable key={friend as string} onPress={() => createNewPrivateChat(friend as string)} style={{ backgroundColor: "#262626", padding: 20, borderRadius: 10, margin: 10, alignItems: "flex-start", justifyContent: "flex-start" }}>
+                                    <Text style={{ color: "white", fontSize: 16 }}>{friend}</Text>
+                                </Pressable>
+                            );
+                        })
+                    ]);
+
+                    setLoadingFriends(false);
+                } catch (error) {
+                    console.error("Error calling internal API:", error);
+                    setError("Error loading the chats module");
+                    setLoadingFriends(false);
+                }
+
+                return true;
+            };
+
+            fetchChats();
+            fetchFriends();
+
+            setCreateChat(false);
+
+            return;
+        }, [token])
+    );
+
+
+    /* 
+        api call: .../create-chat (post)
+
+            use JSON to send the data in the body
+            {
+                "private": true, -> true: DM // false: group
+                "users": [
+                    "userId-1",
+                    "userId-2"
+                ],
+                "name": "testingroup"
+            } 
+    */
+
+    const createNewPrivateChat = async (friend: string) => {
+        console.log("Creating new chat with: ", friend);
+
+        // First, refresh the chats list to ensure it's current
+        try {
+            const urlApi = 'http://localhost:' + LHPORT + '/api/items/chats-from-user?userId=' + token?.user_id;
+            const result = await fetch(urlApi, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await result.json();
+            const refreshedChats = data.return;
+            setChats(refreshedChats);
+            console.log("Refreshed chats:", refreshedChats);
+
+            // Check if the friend is already in the refreshed chats
+            const found = refreshedChats.find((chat: Chat) => {
+                if (!chat.private) return false; // Ensure it's a private chat
+                if (chat.participants.length !== 2) return false; // Ensure exactly 2 participants
+
+                // Check if both the user and the friend are participants
+                const participants = chat.participants.map((participant: any) => participant.userId);
+                return participants.includes(token.user_id) && participants.includes(friend);
+            });
+
+            console.log("Found chat: ", found);
+
+            if (found !== undefined) {
+                console.log("Chat already exists");
+                const route = `../components/chat?chatId=${found._id}`;
+                router.push(route as any); // Redirect to the existing chat
+                return;
             }
 
-            return true;
-        };
+            // Create new chat if none exists
+            const createUrlApi = `http://localhost:${LHPORT}/api/items/create-chat`;
+            const name = "DM " + token.user_id + " " + friend;
+            const response = await fetch(createUrlApi, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    group: false,
+                    users: [token.user_id, friend],
+                    name: name,
+                }),
+            });
 
-        const fetchFriends = async () => {
-            try {
-                const urlApi = 'http://localhost:5000/api/items/friends?userId=' + token?.user_id;
-                const getFriendsFromUserApi = fetch(urlApi, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const result = await getFriendsFromUserApi;
-                const friends = await result.json();
-                setFriends(friends.friends);
-                setLoadingFriends(false);
-                console.log("User friends:", friends);
-            } catch (error) {
-                console.error("Error calling internal API:", error);
-                setError("Error loading the chats module");
-                setLoadingFriends(false);
+            const responseData = await response.json();
+            if (responseData.return !== 1) {
+                throw new Error(`Failed to create chat: ${responseData.message}`);
             }
 
-            return true;
-        };
-
-        fetchChats();
-        fetchFriends();
-
-        setCreateChat(false);
-        populateShowList("chats");
-    }, []);
-
-    function populateShowList(listName: string) {
-        if (listName === "friends") {
-            setListToShow([
-                <Pressable key={'new-group-chat'} onPress={() => createNewGroupChat()} style={{ backgroundColor: "#262626", padding: 20, borderRadius: 10, margin: 10, alignItems: "flex-start", justifyContent: "flex-start" }}>
-                    <Text style={{ color: "white", fontSize: 16, fontStyle: 'italic' }}>Create new group chat</Text>
-                </Pressable>,
-                friends.map((friend) => {
-                    return (
-                        <Pressable key={friend} onPress={() => createNewPrivateChat(friend)} style={{ backgroundColor: "#262626", padding: 20, borderRadius: 10, margin: 10, alignItems: "flex-start", justifyContent: "flex-start" }}>
-                            <Text style={{ color: "white", fontSize: 16 }}>{friend}</Text>
-                        </Pressable>
-                    );
-                })
-            ]);
-        } else if (listName === "chats") {
-            setListToShow(
-                chats.map((chat) => {
-                    const route = `../components/chat?chatId=${chat.id}`;
-                    return (
-                        <Pressable key={chat.id} onPress={() => router.push(route as any)} style={{ backgroundColor: "#262626", padding: 20, borderRadius: 10, margin: 10, alignItems: "flex-start", justifyContent: "flex-start" }}>
-                            <Text style={{ color: "white", fontSize: 16 }}>{chat.name}</Text>
-                        </Pressable>
-                    );
-                })
-            );
-        } else {
-            console.error("Error: listName is not valid");
+            if (responseData.chatId) {
+                console.log("Chat created successfully");
+                const route = `../components/chat?chatId=${responseData.chatId}`;
+                router.push(route as any); // Redirect to the new chat
+            } else {
+                console.error("Chat creation failed: No chatId returned");
+            }
+        } catch (error) {
+            console.error("Error creating chat:", error);
         }
-    }
+    };
 
-    function createNewPrivateChat(friend: string) {
+    const createNewGroupChat = async () => {
         // const route = `../components/chat?chatId=${chat.id}`;
-    }
 
-    function createNewGroupChat() {
-        // const route = `../components/chat?chatId=${chat.id}`;
+        // Create an new chat with:
+        // - chat.private = false
+        // - chat.name = "New group chat"
+        // - chat.participants = [token.user_id]
+        // -> redirect to the chat
+
+        try {
+            const urlApi = `http://localhost:${LHPORT}/api/items/create-chat`;
+            const response = await fetch(urlApi, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    group: true,
+                    users: [token.user_id],
+                    name: "New group chat"
+                }),
+            });
+
+            const responseData = await response.json();
+            if (responseData.return !== 1) {
+                throw new Error(`Failed to create group: ${responseData.message}`);
+            }
+
+            if (responseData.chatId) {
+                console.log("Group created successfully");
+                const route = `../components/chat?chatId=${responseData.chatId}`;
+                router.push(route as any); // Redirect to the chats list screen
+            } else {
+                console.error("Group creation failed: No chatId returned");
+            }
+        } catch (error) {
+            console.error("Error creating group:", error);
+        }
     }
 
     function toggleNewChat() {
         // Toggle the state of the friends list
         setCreateChat(!createChat);
-        console.log("Show new chat: ", createChat);
-
-        if (!createChat) {
-            populateShowList("friends");
-        } else {
-            populateShowList("chats");
-        }
-
-        console.log("List to show: ", listToShow);
+        //console.log("Show new chat: ", createChat);
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: "#000000", paddingTop: 81 }}>
+        <View key={"chat-list-header"} style={{ flex: 1, backgroundColor: "#000000", paddingTop: 81 }}>
             <View className="app-bar" style={{
                 height: 80, backgroundColor: "#262626",
                 alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "center", zIndex: 10
@@ -144,9 +304,19 @@ const ChatsScreen = () => {
                         <Text style={{ color: "white", textAlign: "center", marginTop: 20, fontStyle: 'italic' }}>Loading chats...</Text>
                     ) : error ? (
                         <Text style={{ color: "red", textAlign: "center", marginTop: 20, fontStyle: 'italic' }}>{error}</Text>
-                    ) : listToShow.length === 0 ? (
-                        <Text style={{ color: "white", textAlign: "center", marginTop: 20, fontStyle: 'italic' }}>No chats found</Text>
-                    ) : listToShow
+                    ) : createChat ? (
+                        friendsItems.length === 0 ? (
+                            <Text style={{ color: "white", textAlign: "center", marginTop: 20, fontStyle: 'italic' }}>No friends to chat with</Text>
+                        ) : (
+                            friendsItems
+                        )
+                    ) : (
+                        chatsItems.length === 0 ? (
+                            <Text style={{ color: "white", textAlign: "center", marginTop: 20, fontStyle: 'italic' }}>No chats yet</Text>
+                        ) : (
+                            chatsItems
+                        )
+                    )
                 }
             </ScrollView>
 
