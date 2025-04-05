@@ -34,6 +34,8 @@ interface ReproductionModalProps {
   player: any;
   currentPosition: number;
   duration: number;
+  isShuffle: boolean;
+  toggleShuffle: () => void;
 }
 
 const ReproductionModal: React.FC<ReproductionModalProps> = ({
@@ -44,7 +46,9 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   isPaused,
   player,
   currentPosition,
-  duration
+  duration,
+  isShuffle,
+  toggleShuffle
 }) => {
   // Llama a onReload cuando el modal se abra
   useEffect(() => {
@@ -94,10 +98,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <TouchableOpacity onPress={() => player?.nextTrack()}>
                   <MaterialIcons name="skip-next" size={30} color="white"></MaterialIcons>
               </TouchableOpacity>
+              <TouchableOpacity onPress={toggleShuffle}>
+                <MaterialIcons name="shuffle" size={30} color={isShuffle ? "#1DB954" : "white"} />
+            </TouchableOpacity>
           </View>
-          {/* <TouchableOpacity onPress={() => player?.shuffle()} style={styles.reloadButton}>
-            <MaterialIcons name="shuffle" size={30} color="white"></MaterialIcons>
-          </TouchableOpacity> */}
+          
 
           <View style={{ height: 4, backgroundColor: 'gray', width: '100%', marginTop: 8, borderRadius: 2 }}>
             <View

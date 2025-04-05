@@ -254,6 +254,8 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                     player={player}
                     currentPosition={currentPosition}
                     duration={duration}
+                    isShuffle={isShuffle}
+                    toggleShuffle={toggleShuffle}
                 />
             )}
 
