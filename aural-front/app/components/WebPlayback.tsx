@@ -40,10 +40,27 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
     const [reproductionBarVisible, setReproductionBarVisible] = useState(false);
     const [loading, setLoading] = useState(true);
     const [info, setInfo] = useState<{ id: string; name: string; artist: string; album: string; image: string; uri: string }[]>([]); 
+    const [currentPosition, setCurrentPosition] = useState(0);
+    const [duration, setDuration] = useState(0);
 
     const openReproductionModal = () => {
         setReproductionBarVisible(true);
     };
+
+    useEffect(() => {
+        if (!player) return;
+      
+        const interval = setInterval(async () => {
+          const state = await player.getCurrentState();
+          if (state) {
+            setCurrentPosition(state.position);
+            setDuration(state.duration);
+          }
+        }, 1000); // actualiza cada segundo
+      
+        return () => clearInterval(interval);
+      }, [player]);
+      
 
     useEffect(() => {
         if (!token) {
@@ -184,7 +201,16 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                                 <MaterialIcons name="skip-next" size={20} color="white"></MaterialIcons>
                             </TouchableOpacity>
                         </View>
-                    
+                        
+                </View>
+                <View style={{ height: 4, backgroundColor: 'gray', width: '100%', marginTop: 8, borderRadius: 2 }}>
+                    <View
+                        style={{
+                        height: 4,
+                        backgroundColor: '#F05858',
+                        width: `${(currentPosition / duration) * 100}%`,
+                        }}
+                    />
                 </View>
             </TouchableOpacity> }
 
@@ -204,14 +230,14 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { paddingTop: 5,paddingBottom: 5, paddingLeft: 4, paddingRight:4, margin: 4, width: 30, height: 50, backgroundColor: '#262626', zIndex: 1000, position: 'absolute', bottom: 120, borderRadius: 20},
+    container: {marginLeft: 10, paddingTop: 5,paddingBottom: 5, paddingLeft: 4, paddingRight:0, margin: 4, width: 450, height: 60, backgroundColor: '#262626', zIndex: 10, position: 'absolute', bottom: 120, borderRadius: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3.84, elevation: 5 },
     loading: { display: "none"},
     mainWrapper: { flexDirection: 'row', alignItems: 'center', marginBottom: 10},
     cover: { width: 40, height: 40, borderRadius: 10 },
     info: { marginLeft: 15 },
     trackName: { fontSize: 16, fontWeight: 'bold', color: "#FFFFFF" },
     artistName: { fontSize: 12, color: 'gray' },
-    controls: { flexDirection: 'row', justifyContent: 'space-around', left: 120, alignContent: 'center'},
+    controls: { flexDirection: 'row', justifyContent: 'space-around', left: 340, position: 'absolute', width: 100 },
     button: { fontSize: 10, padding: 10, backgroundColor: '#1DB954', color: 'white', borderRadius: 5 }
 });
 
