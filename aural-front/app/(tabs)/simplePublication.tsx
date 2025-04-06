@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { SafeAreaView, StyleSheet, Dimensions, Alert, Text } from 'react-native';
+import { SafeAreaView, StyleSheet, Dimensions, Alert, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import OptionsModal from '../components/optionsModal';
 import PublishModal from '../components/publishModal';
 import PublicationsModal from '../components/publicationsModal';
 import { useToken } from '../context/TokenContext';
+import { router } from 'expo-router';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -29,19 +31,20 @@ const SimplePublicationScreen: React.FC = () => {
     }, [])
   );
 
-  const handlePublish = async () => {
-    if (publicationText.trim() === '') {
-      Alert.alert('Error', 'Please enter some text');
+  const handlePublish = async (text: string) => {
+    console.log(text);
+    if (text.trim() === '') {
+      console.log('Error', 'Please enter some text');
       return;
     }
     if (!token || !token.user_id) {
-      Alert.alert('Error', 'User not authenticated');
+      console.log('Error', 'User not authenticated');
       return;
     }
     try {
       const body = {
         userId: token.user_id,
-        content: publicationText,
+        content: text,
       };
       console.log('Enviando publicación:', body);
       const response = await fetch(ADD_PUBLICATION_URL, {
@@ -104,11 +107,26 @@ const SimplePublicationScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.pageTitle}>Simple Publications</Text>
-      
+      <View style={{
+        height: 80, backgroundColor: "#262626",
+        alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
+      }}>
+        {/* To be later replaced dynamic title */}
+        <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}> Feed </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
+            {token ? `${token.user_id}` : "No Token"}
+          </Text>
+          <MaterialIcons
+            name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
+            size={30}
+            color="white"
+            onPress={() => { }}
+          />
+        </View>
+      </View>
+
       <OptionsModal
-        visible={optionsVisible}
-        onClose={() => setOptionsVisible(false)}
         onViewPublications={handleViewPublications}
         onPublish={() => setPublishVisible(true)}
       />
@@ -117,7 +135,9 @@ const SimplePublicationScreen: React.FC = () => {
         <PublishModal
           visible={publishVisible}
           onClose={() => setPublishVisible(false)}
-          onSubmit={handlePublish}
+          onSubmit={(text: string) => {
+            handlePublish(text);
+          }}
         />
       )}
 
