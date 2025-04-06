@@ -10,22 +10,8 @@ import {
   Image,
 } from 'react-native';
 
-// interface Publication {
-//   id: string;
-//   content: string;
-//   userIdentifier: string;
-// }
-
-// export interface TrackInfo {
-//   id: string;
-//   name: string;
-//   artist: string;
-//   album: string;
-//   image: string;
-//   uri: string;
-// }
-
 interface QueueModalProps {
+  token: string | null;
   visible: boolean;
   onClose: () => void;
   onReload: () => void;
@@ -40,6 +26,7 @@ queue: any;
 }
 
 const QueueModal: React.FC<QueueModalProps> = ({
+  token,
   visible,
   onClose,
   onReload,
@@ -55,6 +42,46 @@ queue
 
     console.log("Queue content:", queue);
     console.log("Queue length:", queue.length);
+
+    const skipToNext = async () => {
+        try {
+            const res = await fetch('https://api.spotify.com/v1/me/player/next', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+    
+            if (res.ok) {
+                console.log("Skipped to next track successfully");
+            } else {
+                console.error("Error skipping to next track", res.status);
+            }
+        } catch (error) {
+            console.error("Error skipping track:", error);
+        }
+    };    
+
+    const clearQueue = async () => {
+        try {
+            const res = await fetch(`https://api.spotify.com/v1/me/player/queue`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+    
+            if (res.ok) {
+                console.log("Queue cleared successfully");
+            } else {
+                console.error("Error clearing queue", res.status);
+            }
+        } catch (error) {
+            console.error("Error clearing queue:", error);
+        }
+    };
 
   return (
         <Modal
@@ -75,22 +102,26 @@ queue
                 
                 <Text style={styles.title}>Queue of Tracks</Text>
                 <View style={{ flexDirection: 'column', alignItems: 'center', marginBottom: 1 }}>
-                    
+                <TouchableOpacity onPress={() => skipToNext()}>
                     <FlatList
-                    data={queue}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
+                        data={queue}
+                        keyExtractor={(item) => item.id.toString()}
+                        renderItem={({ item }) => (
+                            // Render each track in the queue
+                            
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 5, marginLeft: 0 }}>
                             <Image source={{ uri: item.image }} style={{ width: 50, height: 50, borderRadius: 5 }} />
                             <Text style={{ marginLeft: 0, color: '#fff', fontWeight: "bold", fontSize: 20 }}>{item.name}</Text>
-                            <MaterialIcons name="remove-circle-outline" size={20} color={"#f05858"} style={{ marginLeft: 40 }} />
                         </View>
                     )}
                     style={styles.queueList}
                     />
-                    
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => clearQueue} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 5, marginLeft: 0 }}>
+                    <Text style={{ marginLeft: 0, color: '#fff', fontWeight: "bold", fontSize: 20 }}>Delete Queue</Text>
+                    <MaterialIcons name="delete" size={24} color="white" />
+                </TouchableOpacity>
                 </View>
-                
             </View>
         </View>
       </Modal>

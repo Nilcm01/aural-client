@@ -21,6 +21,7 @@ export interface TrackInfo {
 }
 
 interface ReproductionModalProps {
+  token: string | null;
   visible: boolean;
   onClose: () => void;
   onReload: () => void;
@@ -37,6 +38,7 @@ interface ReproductionModalProps {
 }
 
 const ReproductionModal: React.FC<ReproductionModalProps> = ({
+  token,
   visible,
   onClose,
   onReload,
@@ -141,6 +143,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       {/* Queue Modal (not implemented yet) */}
       {queueVisible && (
         <QueueModal
+            token={token}
             // info= {info}
             visible={queueVisible}
             onClose={() => setQueueVisible(false)}

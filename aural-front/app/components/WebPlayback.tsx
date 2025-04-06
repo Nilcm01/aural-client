@@ -306,6 +306,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
 
             {reproductionBarVisible && (
                 <ReproductionModal
+                    token={token}
                     info= {info}
                     visible={reproductionBarVisible}
                     onClose={() => setReproductionBarVisible(false)}
