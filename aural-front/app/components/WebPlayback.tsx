@@ -43,6 +43,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
     const [currentPosition, setCurrentPosition] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isShuffle, setShuffle] = useState(false);
+    const [queue, setQueue] = useState<any[]>([]); // State to hold the queue
 
     const toggleShuffle = async () => {
         const newState = !isShuffle;
@@ -68,6 +69,35 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
 
     const openReproductionModal = () => {
         setReproductionBarVisible(true);
+    };
+
+    const setQueueTracks = async (uris: string[]) => {
+        if (!token || !deviceId) {
+            console.error("No token or device ID");
+            return;
+        }
+
+        try {
+            const res = await fetch("https://api.spotify.com/v1/me/player/play", {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    device_id: deviceId,
+                    uris: uris
+                })
+            });
+
+            if (res.ok) {
+                console.log("Playback queue replaced with new tracks.");
+            } else {
+                console.error("Error replacing queue:", await res.text());
+            }
+        } catch (error) {
+            console.error("Error replacing queue:", error);
+        }
     };
 
     useEffect(() => {
@@ -171,6 +201,12 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                     };
 
                     setInfo([trackInfo]); // Update the info state with the track information
+                    const newQueue = [];
+                    for (let i = 0; i < state.track_window.next_tracks.length; i++) {
+                        setQueue(state.track_window.next_tracks);
+                        newQueue.push(state.track_window.next_tracks[i]);
+                    };
+                    setQueue(newQueue);
 
                     // Verify if reproduction is active
                     spotifyPlayer.getCurrentState().then((state: any) => {
@@ -191,8 +227,6 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
     if (!token) {
         console.log("Loading Spotify Player...");
     }
-
-
 
     return (
         <View style={[ !loading ? styles.container : styles.loading]}>
@@ -253,12 +287,12 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                     isPaused={isPaused}
                     player={player}
                     currentPosition={currentPosition}
+                    queue={queue}
                     duration={duration}
                     isShuffle={isShuffle}
                     toggleShuffle={toggleShuffle}
                 />
             )}
-
         </View>
     );
 };
