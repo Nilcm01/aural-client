@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from "expo-router";
-import { Image, Text, View, TextInput, Button, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Image, Text, View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useToken } from "./context/TokenContext";
 
@@ -12,6 +12,7 @@ const ProfileScreen = () => {
   const [age, setAge] = useState('');
   const [description, setDescription] = useState('');
   const [profileImage, setProfileImage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Fetch user profile data when component mounts
   useEffect(() => {
@@ -24,20 +25,27 @@ const ProfileScreen = () => {
       })
         .then((response) => response.json())
         .then((data) => {
+          // Initialize data from ddbb
           setName(data.name);
           setAge(data.age);
           setDescription(data.description);
           setProfileImage(data.imageURL);
         })
-        .catch((error) => console.error("Error fetching profile data:", error));
+        .catch((error) => {
+          console.error("Error fetching profile data:", error);
+          setErrorMessage("Failed to load profile data.");
+        });
     }
   }, [token]);
 
   // Manage data modification
   const handleSaveChanges = () => {
-    console.log('Profile Updated');
-    // Send updated profile data to backend
+    if (!token) {
+      setErrorMessage("You need to be logged in to save changes.");
+      return;
+    }
 
+    // Send updated profile data to backend
     if (token && token.user_id) {
       fetch(`http://localhost:5000/api/items/modify-profile?userId=${token.user_id}`, {
         method: 'PUT',
@@ -55,16 +63,18 @@ const ProfileScreen = () => {
       .then((response) => response.json())
       .then((data) => {
         console.log("Profile updated:", data);
+        setErrorMessage('');
       })
       .catch((error) => {
         console.error("Error updating profile:", error);
-        Alert.alert("Error", "There was an issue updating your profile.");
+        setErrorMessage("There was an issue updating your profile.");
       });
     }
   };
 
   // Handle navigation to the previous screen
   const goBack = () => {
+    // Returns Home
     router.push("/");
   };
 
@@ -137,6 +147,11 @@ const ProfileScreen = () => {
         />
       </View>
 
+      {/* Error message */}
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      ) : null}
+
       {/* Save Changes button */}
       <TouchableOpacity style={styles.saveButton} onPress={handleSaveChanges}>
         <Text style={styles.saveButtonText}>Save Changes</Text>
@@ -201,7 +216,7 @@ const styles = StyleSheet.create({
     height: 80,
   },
   saveButton: {
-    backgroundColor: '#F05858',
+    backgroundColor: '#4CAF50',
     paddingVertical: 7.5,
     paddingHorizontal: 30,
     borderRadius: 5,
@@ -213,6 +228,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
+  },
+  errorText: {
+    color: '#F44336',
+    textAlign: 'center',
+    marginBottom: 15,
   },
 });
 
