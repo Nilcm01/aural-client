@@ -230,6 +230,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                         newQueue.push(state.track_window.next_tracks[i]);
                     };
                     setQueue(newQueue);
+                    console.log("Queue INFOOOOOO:", newQueue);
 
                     // Verify if reproduction is active
                     spotifyPlayer.getCurrentState().then((state: any) => {
