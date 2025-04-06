@@ -43,6 +43,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
     const [currentPosition, setCurrentPosition] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isShuffle, setShuffle] = useState(false);
+    const [isOnRepeat, setRepeat] = useState(0);
     const [queue, setQueue] = useState<any[]>([]); // State to hold the queue
 
     const toggleShuffle = async () => {
@@ -64,6 +65,28 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
             }
         } catch (error) {
             console.error("Error setting shuffle:", error);
+        }
+    };
+
+    const toggleRepeat = async () => {
+        const newState = isOnRepeat ? 'off' : 'track'; // o 'context' si prefieres repetir la playlist
+        try {
+            const res = await fetch(`https://api.spotify.com/v1/me/player/repeat?state=${newState}`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+    
+            if (res.ok) {
+                console.log(`Repeat ${newState === 'off' ? 'disabled' : 'enabled'}`);
+                setRepeat(newState === 'off' ? 0 : 1); // actualiza el estado local
+            } else {
+                console.error("Error setting repeat:", res.status);
+            }
+        } catch (error) {
+            console.error("Error setting repeat:", error);
         }
     };
 
@@ -245,6 +268,11 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                     </View>
                     
                         <View style={styles.controls}>
+                            {/* On repeat button */}
+                            <TouchableOpacity onPress={toggleRepeat}>
+                                <MaterialIcons name="repeat" size={20} color={isOnRepeat ? "#1DB954" : "white"}  style={{}}/>
+                            </TouchableOpacity>
+
                             <TouchableOpacity onPress={() => player?.previousTrack()}>
                                 <MaterialIcons name="skip-previous" size={20} color="white"></MaterialIcons>
                             </TouchableOpacity>
@@ -291,6 +319,8 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                     duration={duration}
                     isShuffle={isShuffle}
                     toggleShuffle={toggleShuffle}
+                    isOnRepeat={isOnRepeat}
+                    toggleRepeat={toggleRepeat}
                 />
             )}
         </View>

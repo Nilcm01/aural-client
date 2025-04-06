@@ -31,6 +31,8 @@ interface ReproductionModalProps {
   duration: number;
   isShuffle: boolean;
   toggleShuffle: () => void;
+  isOnRepeat: any;
+  toggleRepeat: () => void;
   queue: any;
 }
 
@@ -45,6 +47,8 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   duration,
   isShuffle,
   toggleShuffle,
+  isOnRepeat,
+  toggleRepeat,
   queue
 }) => {
   // Llama a onReload cuando el modal se abra
@@ -60,7 +64,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const openQueueModal = () => {
     setQueueVisible(true);
   };
-  
+
   return (
     <View>
         <Modal
@@ -91,6 +95,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
             </View>
 
             <View style={styles.controls}>
+                {/* On repeat button */}
+                <TouchableOpacity onPress={toggleRepeat}>
+                    <MaterialIcons name="repeat" size={30} color={isOnRepeat ? "#1DB954" : "white"}  style={{}}/>
+                </TouchableOpacity>
+
                 <TouchableOpacity onPress={() => player?.previousTrack()}>
                     <MaterialIcons name="skip-previous" size={30} color="white"></MaterialIcons>
                 </TouchableOpacity>
@@ -105,9 +114,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <TouchableOpacity onPress={() => player?.nextTrack()}>
                     <MaterialIcons name="skip-next" size={30} color="white"></MaterialIcons>
                 </TouchableOpacity>
+
+                {/* Shuffle button */}
                 <TouchableOpacity onPress={toggleShuffle}>
-                  <MaterialIcons name="shuffle" size={30} color={isShuffle ? "#1DB954" : "white"} />
-              </TouchableOpacity>
+                  <MaterialIcons name="shuffle" size={30} color={isShuffle ? "#1DB954" : "white"}  style={{}}/>
+                </TouchableOpacity>
             </View>
             
 
@@ -210,8 +221,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textDecorationLine: 'underline',
   },
-  controls: { flexDirection: 'row', justifyContent: 'space-around', position: 'absolute', width: 100, bottom: 40, alignSelf: 'center', marginBottom: 20 },
-
+  controls: { flexDirection: 'row', justifyContent: 'space-around', position: 'absolute', width: 200, bottom: 40, alignSelf: 'center', marginBottom: 20 },
 });
 
 export default ReproductionModal;
