@@ -4,11 +4,10 @@ import { router, Tabs } from "expo-router";
 import { View, Text, StyleSheet, Alert, SafeAreaView } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import CustomFeedButton from "../components/CustomFeedButton";
-import SongPlaying from "../components/songPlaying";
-import ReproductionBar from "../components/reproductionBar";
 import OptionsModal from "../components/optionsModal";
 import PublishModal from "../components/publishModal";
 import PublicationsModal from "../components/publicationsModal";
+import ReproductionModal from "../components/reproductionModal";
 import { FooterBarButton } from "../components/footerBar";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
@@ -25,6 +24,7 @@ export default function TabsLayout() {
   const [feedModalVisible, setFeedModalVisible] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [publicationsModalVisible, setPublicationsModalVisible] = useState(false);
+
   // Estado para almacenar las publicaciones del backend
   const [publications, setPublications] = useState<any[]>([]);
 

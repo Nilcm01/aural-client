@@ -1,7 +1,5 @@
 import { Text, View, Button } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
-import ReproductionBar from './reproductionBar';
-import SongPlaying from './songPlaying';
 
 
 export function FooterBarButton({ title, onPress }: { title: string; onPress: () => void }) {
