@@ -16,7 +16,7 @@ function MainContent() {
 
     return (
         <>  
-            <WebPlayback token={token?.access_token ?? ""} />
+            {token?.access_token && <WebPlayback token={token.access_token} />}
             <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="loginScreen" />
