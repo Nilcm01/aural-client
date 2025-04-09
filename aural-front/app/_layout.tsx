@@ -16,9 +16,9 @@ function MainContent() {
     console.log("Token in _layout:", token?.access_token); // Log the token to check its value
 
     return (
-        <>
+        <>  
             <SharingProvider>
-                <WebPlayback token={token?.access_token ?? ""} />
+                {token?.access_token && <WebPlayback token={token.access_token} />}
                 <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="(tabs)" />
                     <Stack.Screen name="loginScreen" />

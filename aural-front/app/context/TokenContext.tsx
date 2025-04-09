@@ -40,6 +40,8 @@ export interface TokenData {
 interface TokenContextType {
     token: TokenData | null;
     setToken: React.Dispatch<React.SetStateAction<TokenData | null>>;
+    getToken: () => TokenData | null;
+    isTokenLoaded: () => boolean;
     logout: () => Promise<void>;
 }
 
@@ -133,6 +135,26 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
         return () => clearInterval(interval);
     }, [token]);
 
+    // Function to get the token data
+    const getToken = () => {
+        if (token?.access_token !== null) {
+            return token;
+        } else {
+            //console.error("Token is not loaded yet.");
+            return null;
+        }
+    };
+
+    // Function to check if the token is loaded
+    const isTokenLoaded = () => {
+        if (token?.access_token !== null) {
+            return true;
+        } else {
+            //console.error("Token is not loaded yet.");
+            return false;
+        }
+    };
+
     // Logout function to clear token data
     const logout = async () => {
         try {
@@ -146,7 +168,7 @@ export const TokenProvider = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-        <TokenContext.Provider value={{ token, setToken, logout }}>
+        <TokenContext.Provider value={{ token, setToken, getToken, isTokenLoaded, logout }}>
             {children}
         </TokenContext.Provider>
     );
