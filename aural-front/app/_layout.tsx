@@ -1,14 +1,30 @@
 import { Stack } from "expo-router";
-import { TokenProvider } from "./context/TokenContext";
+import { TokenProvider, useToken } from "./context/TokenContext";
+import WebPlayback from "./components/WebPlayback";
+import { SharingProvider } from "./context/SharingContext";
 
 export default function RootLayout() {
     return (
         <TokenProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="loginScreen" />
-                <Stack.Screen name="profileScreen" />
-            </Stack>
+            <MainContent />
         </TokenProvider>
+    );
+}
+
+function MainContent() {
+    const { token } = useToken();
+    console.log("Token in _layout:", token?.access_token); // Log the token to check its value
+
+    return (
+        <>  
+            <SharingProvider>
+                {token?.access_token && <WebPlayback token={token.access_token} />}
+                <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="loginScreen" />
+                    <Stack.Screen name="profileScreen" />
+                </Stack>
+            </SharingProvider>
+        </>
     );
 }
