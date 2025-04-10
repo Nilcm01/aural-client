@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -10,11 +10,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   Image,
+  Alert,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import HistoryContainer from "../components/historyContainer";
 import { useNavigation } from "@react-navigation/native";
 import { useToken } from "../context/TokenContext";
+import QueueModal from "../components/QueueModal";
+import { useQueue } from "../context/QueueContext";
 
 // Interfície per als resultats de cerca d'usuaris
 interface UserMatch {
@@ -24,18 +27,27 @@ interface UserMatch {
   imageURL: string;
 }
 
-// Interfície per als resultats de cerca de contingut (àlbums, tracks, artistes)
+// Interfície per als resultats de cerca de contingut (àlbums, pistes i artistes)
 interface ContentItem {
   id: string;
   name: string;
   type: string;
-  images: { url: string }[];
+  // Para que funcione tanto con álbumes que puedan venir con "images" directamente y con tracks que tienen "album.images":
+  album?: {
+    images: { url: string }[];
+  };
+  images?: { url: string }[]; // Si es un objeto que ya trae imágenes directamente (por ejemplo, un álbum)
   artists?: { name: string }[];
+  uri?: string;
 }
+
 
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation<any>();
-  const { token } = useToken();
+  const { token } = useToken(); // token es del tipo TokenData | null
+  // Usamos el contexto para gestionar la cola
+  const { queue, addToQueue, removeFromQueue, clearQueue, updateQueue } = useQueue();
+
   const [query, setQuery] = useState<string>("");
   const [userResults, setUserResults] = useState<UserMatch[]>([]);
   const [albums, setAlbums] = useState<ContentItem[]>([]);
@@ -44,25 +56,70 @@ const SearchScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
-  // Variables per controlar el límit inicial de resultats per secció
+  // Límit per secció
   const [albumLimit, setAlbumLimit] = useState<number>(5);
   const [trackLimit, setTrackLimit] = useState<number>(5);
   const [artistLimit, setArtistLimit] = useState<number>(5);
 
-  // Funció per obtenir tots els usuaris (per enriquir resultats de cerca d'usuaris)
+  // Estat per controlar la visibilitat del modal de Queue
+  const [queueModalVisible, setQueueModalVisible] = useState<boolean>(false);
+
+  // Debug: Mostrar en consola cada vegada que la cola canvia
+  useEffect(() => {
+    console.log("Queue updated:", JSON.stringify(queue));
+  }, [queue]);
+
+  // Sincronización de la cola real de Spotify (opcional)
+  useEffect(() => {
+    const fetchSpotifyQueue = async () => {
+      if (!token?.access_token) return;
+      try {
+        const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + token.access_token,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          console.log("Spotify queue:", data);
+          if (data.queue) {
+            const spotifyQueue = data.queue.map((track: any) => ({
+              id: track.id,
+              image: track.album && track.album.images && track.album.images[0]
+                ? track.album.images[0].url
+                : "https://example.com/default-image.jpg",
+              name: track.name,
+              uri: track.uri,
+            }));
+            updateQueue(spotifyQueue);
+          }
+        } else {
+          console.error("Error fetching Spotify queue, status:", res.status);
+        }
+      } catch (error) {
+        console.error("Error fetching Spotify queue:", error);
+      }
+    };
+
+    fetchSpotifyQueue();
+    const interval = setInterval(fetchSpotifyQueue, 10000);
+    return () => clearInterval(interval);
+  }, [token, updateQueue]);
+
+  // Funció per obtenir tots els usuaris
   const fetchAllUsers = async (): Promise<any[]> => {
     try {
       const resp = await fetch("http://localhost:5000/api/items/users");
       if (!resp.ok) throw new Error("Error fetching all users");
-      const allUsers = await resp.json();
-      return allUsers;
+      return await resp.json();
     } catch (err) {
-      console.error("Error al obtenir tots els usuaris:", err);
+      console.error("Error fetching all users:", err);
       return [];
     }
   };
 
-  // Cerca d'usuaris (utilitza l'endpoint que retorna target i rating)
+  // Cerca d'usuaris
   const handleSearchUsers = async () => {
     if (!query.trim()) {
       setUserResults([]);
@@ -74,30 +131,28 @@ const SearchScreen: React.FC = () => {
       const response = await fetch(
         `http://localhost:5000/api/items/search-user?username=${encodeURIComponent(query)}`
       );
-      if (!response.ok)
-        throw new Error("Network response was not ok in search-user");
+      if (!response.ok) throw new Error("Network error in search-user");
       const data: Array<{ target: string; rating: number }> = await response.json();
-      // Enriquir resultats amb userId i imageURL
       const allUsers = await fetchAllUsers();
       const enrichedResults: UserMatch[] = data.map((match) => {
         const found = allUsers.find((u: any) => u.username === match.target);
         return {
           target: match.target,
           rating: match.rating,
-          userId: found ? found.userId : match.target, // fallback
+          userId: found ? found.userId : match.target,
           imageURL: found && found.imageURL ? found.imageURL : "https://example.com/default-image.jpg",
         };
       });
       setUserResults(enrichedResults);
     } catch (err) {
       console.error(err);
-      setError("Error al buscar usuaris.");
+      setError("Error searching users.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Cerca de contingut a Spotify (àlbums, tracks i artistes)
+  // Cerca de contingut a Spotify
   const handleSearchContent = async () => {
     if (!query.trim()) {
       setAlbums([]);
@@ -106,7 +161,7 @@ const SearchScreen: React.FC = () => {
       return;
     }
     if (!token?.access_token) {
-      setError("No hi ha token de Spotify disponible.");
+      setError("No Spotify token available.");
       return;
     }
     setLoading(true);
@@ -121,7 +176,7 @@ const SearchScreen: React.FC = () => {
           },
         }
       );
-      if (!response.ok) throw new Error("Spotify response was not ok");
+      if (!response.ok) throw new Error("Spotify response error");
       const data = await response.json();
       const albumsData: ContentItem[] = data.albums ? data.albums.items : [];
       const tracksData: ContentItem[] = data.tracks ? data.tracks.items : [];
@@ -131,18 +186,19 @@ const SearchScreen: React.FC = () => {
       setArtists(artistsData);
     } catch (err) {
       console.error(err);
-      setError("Error al cercar contingut.");
+      setError("Error searching content.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Crida a ambdues funcions de cerca
+  // Crida conjunta per la cerca
   const handleSearch = async () => {
     await handleSearchUsers();
     await handleSearchContent();
   };
 
+  // Funció per enviar sol·licitud d'amistat
   const sendFriendRequest = async (friendId: string) => {
     try {
       const currentUserId = token?.user_id || "Test1Friends";
@@ -154,11 +210,78 @@ const SearchScreen: React.FC = () => {
           friendId: friendId,
         }),
       });
-      if (!response.ok) throw new Error("Network response was not ok in sendFriendRequest");
-      alert("Friend request sent!");
+      if (!response.ok) throw new Error("Network error in sendFriendRequest");
+      Alert.alert("Success", "Friend request sent!");
     } catch (error) {
       console.error(error);
-      alert("Failed to send friend request.");
+      Alert.alert("Error", "Failed to send friend request.");
+    }
+  };
+
+  // Funció per reproduir una pista
+  const playTrack = async (uri: string | undefined) => {
+    if (!uri) {
+      Alert.alert("Error", "No valid track URI");
+      return;
+    }
+    if (!token?.access_token) {
+      Alert.alert("Error", "No Spotify token available.");
+      return;
+    }
+    try {
+      const response = await fetch("https://api.spotify.com/v1/me/player/play", {
+        method: "PUT",
+        headers: {
+          "Authorization": "Bearer " + token.access_token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uris: [uri] }),
+      });
+      if (!response.ok) throw new Error("Network error in playTrack");
+      Alert.alert("Playing", "Track is now playing!");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Failed to play track.");
+    }
+  };
+
+  // Funció per afegir una pista a la cua, usant el context per actualizar la cola global
+  const handleAddToQueue = async (
+    uri: string | undefined,
+    track: { id: string; image: string; name: string; uri: string }
+  ) => {
+    if (!uri) {
+      Alert.alert("Error", "No valid track URI");
+      return;
+    }
+    if (!token?.access_token) {
+      Alert.alert("Error", "No Spotify token available.");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.ok) {
+        Alert.alert("Success", "Track added to queue!");
+        addToQueue({ id: track.id, image: track.image, name: track.name, uri });
+      } else {
+        const errorText = await response.text();
+        console.error("Error adding track to queue:", response.status, errorText);
+        Alert.alert("Error", "Failed to add track to queue via Spotify. Adding locally for testing.");
+        addToQueue({ id: track.id, image: track.image, name: track.name, uri });
+      }
+    } catch (error) {
+      console.error("Exception in addToQueue:", error);
+      Alert.alert("Error", "Exception occurred. Adding track to queue locally.");
+      addToQueue({ id: track.id, image: track.image, name: track.name, uri });
     }
   };
 
@@ -178,14 +301,13 @@ const SearchScreen: React.FC = () => {
 
   const renderAlbumItem = ({ item }: { item: ContentItem }) => (
     <View style={styles.resultItem}>
-      <TouchableOpacity
-        onPress={() => {
-          // TODO: Implement navigation to album detail
-          console.log("Album clicked: ", item.id);
-        }}
-      >
+      <TouchableOpacity onPress={() => console.log("Album clicked:", item.id)}>
         <Image
-          source={{ uri: item.images && item.images.length > 0 ? item.images[0].url : "https://example.com/default-image.jpg" }}
+          source={{
+            uri: item.images && item.images.length > 0
+              ? item.images[0].url
+              : "https://example.com/default-image.jpg",
+          }}
           style={styles.userImage}
         />
         <Text style={styles.username}>{item.name}</Text>
@@ -194,34 +316,55 @@ const SearchScreen: React.FC = () => {
     </View>
   );
 
-  const renderTrackItem = ({ item }: { item: ContentItem }) => (
-    <View style={styles.resultItem}>
-      <TouchableOpacity
-        onPress={() => {
-          // TODO: Implement navigation to track detail
-          console.log("Track clicked: ", item.id);
-        }}
-      >
-        <Image
-          source={{ uri: item.images && item.images.length > 0 ? item.images[0].url : "https://example.com/default-image.jpg" }}
-          style={styles.userImage}
-        />
-        <Text style={styles.username}>{item.name}</Text>
-      </TouchableOpacity>
-      <Text style={styles.contentType}>Track</Text>
-    </View>
-  );
+  const renderTrackItem = ({ item }: { item: ContentItem }) => {
+    // Usamos la imagen del álbum ya que el track no trae "images" directamente
+    const trackImageUri =
+      item.album && item.album.images && item.album.images.length > 0
+        ? item.album.images[0].url
+        : "https://example.com/default-image.jpg";
+        
+    return (
+      <View style={styles.resultItem}>
+        <TouchableOpacity
+          onPress={() => {
+            playTrack(item.uri);
+            console.log("Track clicked:", item.id);
+          }}
+        >
+          <Image
+            source={{ uri: trackImageUri }}
+            style={styles.userImage}
+          />
+          <Text style={styles.username}>{item.name}</Text>
+        </TouchableOpacity>
+        <Text style={styles.contentType}>Track</Text>
+        <TouchableOpacity
+          style={styles.friendRequestButton}
+          onPress={() =>
+            handleAddToQueue(item.uri, {
+              id: item.id,
+              image: trackImageUri,
+              name: item.name,
+              uri: item.uri || "",
+            })
+          }
+        >
+          <Text style={styles.buttonText}>Add to Queue</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+  
 
   const renderArtistItem = ({ item }: { item: ContentItem }) => (
     <View style={styles.resultItem}>
-      <TouchableOpacity
-        onPress={() => {
-          // TODO: Implement navigation to artist detail
-          console.log("Artist clicked: ", item.id);
-        }}
-      >
+      <TouchableOpacity onPress={() => console.log("Artist clicked:", item.id)}>
         <Image
-          source={{ uri: item.images && item.images.length > 0 ? item.images[0].url : "https://example.com/default-image.jpg" }}
+          source={{
+            uri: item.images && item.images.length > 0
+              ? item.images[0].url
+              : "https://example.com/default-image.jpg",
+          }}
           style={styles.userImage}
         />
         <Text style={styles.username}>{item.name}</Text>
@@ -279,7 +422,7 @@ const SearchScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Secció de tracks */}
+        {/* Secció de pistes */}
         <View style={{ marginTop: 40 }}>
           <Text style={styles.sectionTitle}>Tracks</Text>
           <FlatList
@@ -313,6 +456,23 @@ const SearchScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Botó per obrir la cua de reproducció */}
+      <TouchableOpacity style={styles.openQueueButton} onPress={() => setQueueModalVisible(true)}>
+        <MaterialIcons name="queue-music" size={32} color="white" />
+      </TouchableOpacity>
+
+      <QueueModal
+        token={token?.access_token || null}
+        visible={queueModalVisible}
+        onClose={() => setQueueModalVisible(false)}
+        queue={queue}
+        onRemoveItem={removeFromQueue}
+        onClearQueue={clearQueue}
+        onSkip={() => {
+          Alert.alert("Skip", "Skipping track...");
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -415,6 +575,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 10,
     fontSize: 16,
+  },
+  openQueueButton: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    backgroundColor: "#1DB954",
+    padding: 10,
+    borderRadius: 50,
   },
 });
 
