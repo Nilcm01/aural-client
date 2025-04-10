@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, Alert, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import ReproductionModal from './reproductionModal';
 import { useQueue } from '../context/QueueContext'; // Utilizamos el contexto para la cola
 
@@ -152,7 +152,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
     setInfo([trackInfo]);
   }, [currentTrack]);
 
-  // Efecto para remover el primer ítem de la cola cuando ese track se empiece a reproducir
+  // Remueve el primer ítem de la cola cuando se empiece a reproducir ese track
   useEffect(() => {
     if (
       queue.length > 0 &&
@@ -163,7 +163,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
       console.log("Removing first track from queue:", currentTrack.id);
       removeFromQueue(currentTrack.id);
     }
-  }, [currentTrack]);
+  }, [currentTrack, queue, removeFromQueue]);
 
   useEffect(() => {
     const initPlayer = async () => {
@@ -278,7 +278,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
       <TouchableOpacity onPress={openReproductionModal} style={styles.layout}>
         <View style={styles.mainWrapper}>
           <View style={styles.innerBar}>
-            {currentTrack.album.images[0]?.url !== '' && (
+            {currentTrack?.album?.images && currentTrack.album.images.length > 0 && (
               <Image
                 source={{ uri: currentTrack.album.images[0].url }}
                 style={styles.cover}
@@ -286,10 +286,10 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
             )}
             <View style={styles.info}>
               <Text style={styles.trackName}>
-                {currentTrack.name ? currentTrack.name : 'No music playing'}
+                {currentTrack?.name ? currentTrack.name : 'No music playing'}
               </Text>
               <Text style={styles.artistName}>
-                {currentTrack.artists[0]?.name ? currentTrack.artists[0].name : ''}
+                {currentTrack?.artists[0]?.name ? currentTrack.artists[0].name : ''}
               </Text>
             </View>
           </View>
@@ -343,7 +343,6 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
           toggleShuffle={toggleShuffle}
           isOnRepeat={isOnRepeat}
           toggleRepeat={toggleRepeat}
-          // Se asumen que ReproductionModal pasa removeFromQueue y clearQueue a su QueueModal interno
           onRemoveItem={removeFromQueue}
           onClearQueue={clearQueue}
         />
