@@ -302,15 +302,15 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                 <TouchableOpacity onPress={openReproductionModal} style={styles.layout}>
                     <View style={styles.mainWrapper}>
                         <View style={styles.innerBar}>
-                            {currentTrack.album.images[0].url !== '' && (
+                            {currentTrack?.album?.images[0]?.url !== '' && (
                                 <Image
-                                    source={{ uri: currentTrack.album.images[0].url }}
+                                    source={{ uri: currentTrack?.album?.images[0]?.url }}
                                     style={styles.cover}
                                 />
                             )}
                             <View style={styles.info}>
-                                <Text style={styles.trackName}>{currentTrack.name ? currentTrack.name : 'No music playing'}</Text>
-                                <Text style={styles.artistName}>{currentTrack.artists[0].name ? currentTrack.artists[0].name : ''}</Text>
+                                <Text style={styles.trackName}>{currentTrack?.name ? currentTrack?.name : 'No music playing'}</Text>
+                                <Text style={styles.artistName}>{currentTrack?.artists[0]?.name ? currentTrack?.artists[0]?.name : ''}</Text>
                             </View>
                         </View>
                         <View style={styles.controls}>
