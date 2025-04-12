@@ -280,7 +280,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
             </View>
 
             <View style={styles.controls2}>
+<<<<<<< HEAD
             <TouchableOpacity onPress={() => setShowComsAndRatingModal(true)}>
+=======
+              <TouchableOpacity onPress={toggleShuffle}>
+>>>>>>> dev
                 <Ionicons name="chatbubble-outline" size={30} color="white" />
               </TouchableOpacity>
 
@@ -303,7 +307,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       {/* Queue Modal */}
       {queueVisible && (
         <QueueModal
+<<<<<<< HEAD
           token={tokenSpotify}
+=======
+          token={token}
+>>>>>>> dev
           visible={queueVisible}
           onClose={() => setQueueVisible(false)}
           onReload={() => { console.log("Reloading queue information..."); }}
