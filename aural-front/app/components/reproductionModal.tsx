@@ -87,16 +87,27 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   };
 
   //// COMMENTS AND RATING
+  // Define comment interface
+  interface Comment {
+    _id: string;
+    userId: string;
+    content: string;
+    entityType: string;
+    contentId: string;
+    date: string;
+  }
+
   // State for rating and comments modal visibility
   const [showComsAndRatingModal, setShowComsAndRatingModal] = useState(false);
   const { token } = useToken();
   const track = info[0];  // info[id]
   const userId = token?.user_id // user id
-  const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [rating, setRating] = useState<number>(0);
+  const [recentComments, setRecentComments] = useState<Comment[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // useEffect to load past ratings STILL NEED IMPLEMENTATION
+  // useEffect to load past ratings and comments
   useEffect(() => {
     const getRating = async () => {
       if (track && token) {
@@ -104,7 +115,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           const response = await fetch(`http://localhost:5000/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
           const result = await response.json();
   
-          
+          if (response.ok) {
+            setRating(result.averageScore)
+            console.log('Rating fetched successfully:', result.averageScore);
+          } else {
+            console.error("Failed getting rating from api:", result);
+            setErrorMessage("Failed to load rating.");
+          }
+
         } catch (error) {
           console.error("Error fetching rating:", error);
         }
@@ -117,6 +135,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           const response = await fetch(`http://localhost:5000/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
+          if (response.ok) {
+          setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
+          console.log("Recent Comments fetched successfully:", result.slice(-3));
+        } else {
+          console.error("Failed getting recent comments from api:", result);
+          setErrorMessage("Failed to load comments.");
+        }
+
         } catch (error) {
           console.error("Error fetching recent comments:", error);
         }
@@ -124,7 +150,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     };
   
     getRating();
-    getRecentComments;
+    getRecentComments();
   }, [token, track]);  
 
   // Function to handle the submission of a star rating
@@ -280,11 +306,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
             </View>
 
             <View style={styles.controls2}>
-<<<<<<< HEAD
             <TouchableOpacity onPress={() => setShowComsAndRatingModal(true)}>
-=======
-              <TouchableOpacity onPress={toggleShuffle}>
->>>>>>> dev
                 <Ionicons name="chatbubble-outline" size={30} color="white" />
               </TouchableOpacity>
 
@@ -307,11 +329,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       {/* Queue Modal */}
       {queueVisible && (
         <QueueModal
-<<<<<<< HEAD
           token={tokenSpotify}
-=======
-          token={token}
->>>>>>> dev
           visible={queueVisible}
           onClose={() => setQueueVisible(false)}
           onReload={() => { console.log("Reloading queue information..."); }}
@@ -370,16 +388,20 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <View style={styles.recentCommentsSection}>
                 <Text style={styles.comsAndRatingTitle}>Recent Comments</Text>
                 <View style={styles.separator} />
-                <FlatList
-                  data={['Great song!', 'Loved it!', 'Amazing beat!']}
-                  renderItem={({ item }) => (
-                    <View>
-                      <Text style={styles.commentText}>{item}</Text>
-                      <View style={styles.separator} />
-                    </View>
-                  )}
-                  keyExtractor={(item, index) => index.toString()}
-                />
+                {recentComments.length > 0 ? (
+                  <FlatList
+                    data={recentComments}
+                    renderItem={({ item }) => (
+                      <View>
+                        <Text style={styles.commentText}>{item.content}</Text>
+                        <View style={styles.separator} />
+                      </View>
+                    )}
+                    keyExtractor={(item) => item._id}
+                  />
+                ) : (
+                  <Text style={styles.emptyComments}>No comments available.</Text> // Display a message if no comments
+                )}
               </View>
             </View>
           </View>
@@ -563,7 +585,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     marginBottom: 10,
-  }
+  },
+  emptyComments: {
+    color: '#f05858',
+  },
 });
 
 export default ReproductionModal;
