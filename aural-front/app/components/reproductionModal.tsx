@@ -9,8 +9,11 @@ import {
   StyleSheet,
   Image,
   Dimensions,
+  TextInput,
+  Button,
 } from 'react-native';
 import QueueModal from './QueueModal';
+import { useToken } from "./../context/TokenContext";
 
 export interface TrackInfo {
   id: string;
@@ -22,7 +25,7 @@ export interface TrackInfo {
 }
 
 interface ReproductionModalProps {
-  token: string | null;
+  tokenSpotify: string | null;
   visible: boolean;
   onClose: () => void;
   onReload: () => void;
@@ -41,7 +44,7 @@ interface ReproductionModalProps {
 }
 
 const ReproductionModal: React.FC<ReproductionModalProps> = ({
-  token,
+  tokenSpotify,
   visible,
   onClose,
   onReload,
@@ -82,6 +85,152 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
+
+  //// COMMENTS AND RATING
+  // Define comment interface
+  interface Comment {
+    _id: string;
+    userId: string;
+    content: string;
+    entityType: string;
+    contentId: string;
+    date: string;
+  }
+
+  // State for rating and comments modal visibility
+  const [showComsAndRatingModal, setShowComsAndRatingModal] = useState(false);
+  const { token } = useToken();
+  const track = info[0];  // info[id]
+  const userId = token?.user_id // user id
+  const [comment, setComment] = useState('');
+  const [rating, setRating] = useState<number>(0);
+  const [recentComments, setRecentComments] = useState<Comment[]>([]);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // useEffect to load past ratings and comments
+  useEffect(() => {
+    const getRating = async () => {
+      if (track && token) {
+        try {
+          const response = await fetch(`http://localhost:5000/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
+          const result = await response.json();
+  
+          if (response.ok) {
+            setRating(result.averageScore)
+            console.log('Rating fetched successfully:', result.averageScore);
+          } else {
+            console.error("Failed getting rating from api:", result);
+            setErrorMessage("Failed to load rating.");
+          }
+
+        } catch (error) {
+          console.error("Error fetching rating:", error);
+        }
+      }
+    };
+
+    const getRecentComments = async () => {
+      if (track && token) {
+        try {
+          const response = await fetch(`http://localhost:5000/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
+          const result = await response.json();
+
+          if (response.ok) {
+          setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
+          console.log("Recent Comments fetched successfully:", result.slice(-3));
+        } else {
+          console.error("Failed getting recent comments from api:", result);
+          setErrorMessage("Failed to load comments.");
+        }
+
+        } catch (error) {
+          console.error("Error fetching recent comments:", error);
+        }
+      }
+    };
+  
+    getRating();
+    getRecentComments();
+  }, [token, track]);  
+
+  // Function to handle the submission of a star rating
+  const handleRateSubmit = async () => {
+    // Checking that there's a rating
+    if (rating > 0) {
+      try {
+        // API call in order to do a rating
+        const response = await fetch('http://localhost:5000/api/items/create-punctuation', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            entityType: 'song',
+            score: rating,
+            entityId: track.id,
+            date: new Date().toISOString(),
+          }),
+        });
+
+        const textResponse = await response.text(); // Raw response as text
+
+        // Check if the response is a success message or an error
+        if (response.ok) {
+          console.log("Rating submitted successfully", textResponse);
+          setShowComsAndRatingModal(false);
+        } else {
+          console.error("Failed to submit rating:", textResponse);
+        }
+
+      } catch (error) {
+        console.error("Error submitting rating:", error);
+        setErrorMessage("Not able to submit rating");
+      }
+    } else {
+      console.log("No rating selected");
+      setErrorMessage("Please select a rating before submitting.");
+    }
+  };
+
+  // Function to handle the submission of a comment 
+  const handleCommentSubmit = async () => { 
+    // Checking that there's a comment
+    if (comment.trim()) {
+      try {
+        // API call in order to do a comment
+        const response = await fetch('http://localhost:5000/api/items/create-comment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            entityType: 'song',
+            content: comment,
+            contentId: track.id,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          console.log("Comment submitted successfully", result);
+          setShowComsAndRatingModal(false);
+          setComment('');  // Clear comment
+        } else {
+          console.error("Failed to submit comment:", result);
+        }
+      } catch (error) {
+        console.error("Error submitting comment:", error);
+        setErrorMessage("Not able to submit the comment.");
+      }
+    } else {
+      console.log("No comment entered");
+      setErrorMessage("Please write a comment before submitting.");
+    }
+  };
+  ////
 
   return (
     <View>
@@ -157,7 +306,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
             </View>
 
             <View style={styles.controls2}>
-              <TouchableOpacity onPress={toggleShuffle}>
+            <TouchableOpacity onPress={() => setShowComsAndRatingModal(true)}>
                 <Ionicons name="chatbubble-outline" size={30} color="white" />
               </TouchableOpacity>
 
@@ -180,7 +329,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       {/* Queue Modal */}
       {queueVisible && (
         <QueueModal
-          token={token}
+          token={tokenSpotify}
           visible={queueVisible}
           onClose={() => setQueueVisible(false)}
           onReload={() => { console.log("Reloading queue information..."); }}
@@ -189,6 +338,74 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           onClearQueue={onClearQueue}
           onSkip={() => { /* Puedes definir aquí alguna acción para saltar la pista */ }}
         />
+      )}
+
+      {/* Comments and Rating Modal */}
+      {showComsAndRatingModal && (
+        <Modal visible={showComsAndRatingModal} transparent animationType="slide" onRequestClose={() => setShowComsAndRatingModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.title}>Ratings and Comments</Text>
+
+              {/* Close button */}
+              <View style={styles.closeButtonContainer}>
+                <TouchableOpacity onPress={() => setShowComsAndRatingModal(false)}>
+                  <MaterialIcons name="close" size={30} color="#f05858" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Rating section */}
+              <View style={styles.ratingContainer}>
+                <Text style={styles.comsAndRatingTitle}>Rate this song</Text>
+                <View style={styles.starsContainer}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                      <MaterialIcons name={star <= rating ? 'star' : 'star-border'} size={25} color="#F05858" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity style={styles.submitRateButton} onPress={handleRateSubmit}>
+                  <MaterialIcons name="check" size={15} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Comment input section */}
+              <View style={styles.commentInputContainer}>
+                <TextInput
+                  style={styles.commentInput}
+                  value={comment}
+                  onChangeText={setComment}
+                  placeholder="Write your comment here..."
+                  multiline
+                  maxLength={200}
+                />
+                <TouchableOpacity style={styles.submitComsButton} onPress={handleCommentSubmit}>
+                  <MaterialIcons name="send" size={15} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Display recent comments */}
+              <View style={styles.recentCommentsSection}>
+                <Text style={styles.comsAndRatingTitle}>Recent Comments</Text>
+                <View style={styles.separator} />
+                {recentComments.length > 0 ? (
+                  <FlatList
+                    data={recentComments}
+                    renderItem={({ item }) => (
+                      <View>
+                        <Text style={styles.commentText}>{item.content}</Text>
+                        <View style={styles.separator} />
+                      </View>
+                    )}
+                    keyExtractor={(item) => item._id}
+                  />
+                ) : (
+                  <Text style={styles.emptyComments}>No comments available.</Text> // Display a message if no comments
+                )}
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -297,6 +514,80 @@ const styles = StyleSheet.create({
     marginHorizontal: '10%',
     marginTop: 20,
     alignSelf: 'center',
+  },
+  // Comments And Rating styles
+  comsAndRatingTitle: {
+    color: '#f05858',
+    fontSize: 18,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  closeButtonContainer: {
+    position: 'absolute',
+    color: '#f05858',
+    top: 20,
+    right: 20,
+    zIndex: 1,
+  },
+  ratingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginBottom: 10,
+    marginTop: 20,
+  },
+  starsContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  submitRateButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginBottom: 10,
+  },
+  commentInputContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  commentInput: {
+    height: 80,
+    color: '#fff',
+    backgroundColor: '#333',
+    paddingTop: 5,
+    paddingLeft: 10,
+    borderRadius: 5,
+    width: '80%',
+  },
+  submitComsButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    marginLeft: 10,
+  },
+  recentCommentsSection: {
+    marginLeft: '10%',
+    width: '80%',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#333',
+    marginVertical: 15,
+  },
+  commentText: {
+    color: 'white',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  emptyComments: {
+    color: '#f05858',
   },
 });
 
