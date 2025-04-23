@@ -6,10 +6,15 @@ import { Modal } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import { useToken } from "../context/TokenContext";
+import { useReproBarVisibility } from "../components/WebPlayback";
 import { Picker } from '@react-native-picker/picker'; // Import the Picker component
+
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 export default function Chat() {
     const { token } = useToken();
+    const { showReproBar } = useReproBarVisibility();
+    showReproBar(false); // Hide the playback bar
 
     const searchParams = useLocalSearchParams();
     const { chatId } = Array.isArray(searchParams) ? searchParams[0] : searchParams;
@@ -37,8 +42,6 @@ export default function Chat() {
         private: boolean;
     }
 
-    const LHPORT = '5000';
-
     const scrollViewRef = useRef<ScrollView>(null); // Create a ref for the ScrollView
 
     const [chatData, setChatData] = useState<Metadata>();
@@ -57,7 +60,7 @@ export default function Chat() {
 
         const sendMessageToApi = async () => {
             try {
-                const urlApi = `http://localhost:${LHPORT}/api/items/chat-send-message`;
+                const urlApi = `${API_URL}chat-send-message`;
                 const response = await fetch(urlApi, {
                     method: "POST",
                     headers: {
@@ -103,7 +106,7 @@ export default function Chat() {
         useCallback(() => {
             const fetchMetadata = async () => {
                 try {
-                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/chat-metadata?chatId=' + chatId;
+                    const urlApi = API_URL + 'chat-metadata?chatId=' + chatId;
                     const getChatMetadataApi = fetch(urlApi, {
                         method: 'GET',
                         headers: {
@@ -134,7 +137,7 @@ export default function Chat() {
                         return;
                     }
 
-                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/chat-messages?chatId=' + chatId;
+                    const urlApi = API_URL + 'chat-messages?chatId=' + chatId;
                     const getMessagesFromChatApi = fetch(urlApi, {
                         method: 'GET',
                         headers: {
@@ -177,7 +180,7 @@ export default function Chat() {
                         return;
                     }
 
-                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/chat-users?chatId=' + chatId;
+                    const urlApi = API_URL + 'chat-users?chatId=' + chatId;
                     const getMessagesFromChatApi = fetch(urlApi, {
                         method: 'GET',
                         headers: {
@@ -280,7 +283,7 @@ export default function Chat() {
         // Fetch friends for the option to add new members
         const fetchFriends = async () => {
             try {
-                const urlApi = 'http://localhost:' + LHPORT + '/api/items/friends?userId=' + token?.user_id;
+                const urlApi = API_URL + 'friends?userId=' + token?.user_id;
                 const getFriendsFromUserApi = fetch(urlApi, {
                     method: 'GET',
                     headers: {
@@ -320,7 +323,7 @@ export default function Chat() {
         try {
             // Update the group name if it has changed
             if (editedGroupName && editedGroupName !== chatData?.name) {
-                const urlApi = `http://localhost:${LHPORT}/api/items/change-chat-name`;
+                const urlApi = `${API_URL}change-chat-name`;
                 const response = await fetch(urlApi, {
                     method: "PUT",
                     headers: {
@@ -349,7 +352,7 @@ export default function Chat() {
             );
 
             for (const user of usersToAdd) {
-                const urlApi = `http://localhost:${LHPORT}/api/items/add-user-to-chat`;
+                const urlApi = `${API_URL}add-user-to-chat`;
                 const response = await fetch(urlApi, {
                     method: "POST",
                     headers: {
@@ -378,7 +381,7 @@ export default function Chat() {
             );
 
             for (const user of usersToRemove) {
-                const urlApi = `http://localhost:${LHPORT}/api/items/remove-user-from-chat`;
+                const urlApi = `${API_URL}remove-user-from-chat`;
                 const response = await fetch(urlApi, {
                     method: "DELETE",
                     headers: {
@@ -459,7 +462,7 @@ export default function Chat() {
 
     const handleEraseGroup = async () => {
         try {
-            const urlApi = `http://localhost:${LHPORT}/api/items/delete-chat`;
+            const urlApi = `${API_URL}delete-chat`;
             const response = await fetch(urlApi, {
                 method: "DELETE",
                 headers: {

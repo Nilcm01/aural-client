@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, Alert, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import ReproductionModal from './reproductionModal';
@@ -34,9 +34,20 @@ const emptyTrack: TrackType = {
   artists: [{ name: '' }]
 };
 
+var reproBarVisible = false;
+
+export const useReproBarVisibility = () => {
+  const showReproBar = (visible: boolean) => {
+    reproBarVisible = visible;
+  }
+  return {
+    showReproBar
+  }
+};
+
 const WebPlayback: React.FC<Props> = ({ token }) => {
   // Usamos el hook del contexto para obtener la cola y sus métodos
-  const { queue, removeFromQueue, clearQueue } = useQueue();
+  const { queue, removeFromQueue, clearQueue, updateQueue } = useQueue();
 
   const [player, setPlayer] = useState<any>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -51,6 +62,41 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
   const [duration, setDuration] = useState(0);
   const [isShuffle, setShuffle] = useState(false);
   const [isOnRepeat, setRepeat] = useState(0);
+
+  const fetchSpotifyQueue = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
+        method: "GET",
+        headers: {
+          "Authorization": "Bearer " + token,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        //console.log("Spotify queue:", data);
+        if (data.queue) {
+          const spotifyQueue = data.queue.map((track: any) => ({
+            id: track.id,
+            image: track.album && track.album.images && track.album.images[0]
+              ? track.album.images[0].url
+              : "https://example.com/default-image.jpg",
+            name: track.name,
+            uri: track.uri,
+          }));
+          updateQueue(spotifyQueue);
+        }
+      } else {
+        console.error("Error fetching Spotify queue, status:", res.status);
+      }
+    } catch (error) {
+      console.error("Error fetching Spotify queue:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSpotifyQueue();
+  }, []);
 
   const toggleShuffle = async () => {
     const newState = !isShuffle;
@@ -274,7 +320,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
   }
 
   return (
-    <View style={[!loading ? styles.container : styles.loading]}>
+    <View style={[(!loading && reproBarVisible) ? styles.container : styles.loading]}>
       <TouchableOpacity onPress={openReproductionModal} style={styles.layout}>
         <View style={styles.mainWrapper}>
           <View style={styles.innerBar}>
@@ -316,7 +362,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
 
       {reproductionBarVisible && (
         <ReproductionModal
-          token={token}
+          tokenSpotify={token}
           info={info}
           visible={reproductionBarVisible}
           onClose={() => setReproductionBarVisible(false)}

@@ -41,6 +41,7 @@ interface ContentItem {
   uri?: string;
 }
 
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation<any>();
@@ -66,7 +67,7 @@ const SearchScreen: React.FC = () => {
 
   // Debug: Mostrar en consola cada vegada que la cola canvia
   useEffect(() => {
-    console.log("Queue updated:", JSON.stringify(queue));
+    //console.log("Queue updated:", JSON.stringify(queue));
   }, [queue]);
 
   // Sincronización de la cola real de Spotify (opcional)
@@ -82,7 +83,7 @@ const SearchScreen: React.FC = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          console.log("Spotify queue:", data);
+          //console.log("Spotify queue:", data);
           if (data.queue) {
             const spotifyQueue = data.queue.map((track: any) => ({
               id: track.id,
@@ -110,7 +111,7 @@ const SearchScreen: React.FC = () => {
   // Funció per obtenir tots els usuaris
   const fetchAllUsers = async (): Promise<any[]> => {
     try {
-      const resp = await fetch("http://localhost:5000/api/items/users");
+      const resp = await fetch(API_URL + "users");
       if (!resp.ok) throw new Error("Error fetching all users");
       return await resp.json();
     } catch (err) {
@@ -129,7 +130,7 @@ const SearchScreen: React.FC = () => {
     setError("");
     try {
       const response = await fetch(
-        `http://localhost:5000/api/items/search-user?username=${encodeURIComponent(query)}`
+        `${API_URL}search-user?username=${encodeURIComponent(query)}`
       );
       if (!response.ok) throw new Error("Network error in search-user");
       const data: Array<{ target: string; rating: number }> = await response.json();
@@ -202,7 +203,7 @@ const SearchScreen: React.FC = () => {
   const sendFriendRequest = async (friendId: string) => {
     try {
       const currentUserId = token?.user_id || "Test1Friends";
-      const response = await fetch("http://localhost:5000/api/items/send-friend-request", {
+      const response = await fetch(API_URL + "send-friend-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,8 +1,11 @@
 import { View, Text, TextInput } from "react-native";
 import React from "react";
 import SearchBar from "../components/searchBar";
+import { useReproBarVisibility } from "../components/WebPlayback";
 
 export default function SearchScreen() {
+  const { showReproBar } = useReproBarVisibility();
+  showReproBar(true);
   return (
     <View
       style={{

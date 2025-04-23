@@ -4,12 +4,16 @@ import { SafeAreaView, StyleSheet } from 'react-native';
 import LoginHeader from '../app/components/loginHeader';
 import { useEffect, useRef, useState  } from 'react';
 import axios from 'axios';
+import { useReproBarVisibility } from './components/WebPlayback';
 
 interface LoginPageProps {
   navigation?: any;
 }
 
 const LoginPage = ({ navigation }: LoginPageProps) => {
+
+  const { showReproBar } = useReproBarVisibility();
+  showReproBar(false);
 
   return (
     <SafeAreaView style={styles.container}>

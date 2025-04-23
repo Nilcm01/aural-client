@@ -4,9 +4,14 @@ import * as Linking from 'expo-linking';
 import { useToken } from "./context/TokenContext";
 import { Buffer } from 'buffer';
 import { router } from 'expo-router';
+import { useReproBarVisibility } from './components/WebPlayback';
+
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const LoginCallback = () => {
     const { token, setToken } = useToken();
+    const { showReproBar } = useReproBarVisibility();
+    showReproBar(false);
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -56,7 +61,7 @@ const LoginCallback = () => {
 
                             // Make call to internal API for user data
                             try {
-                                const urlApi = 'http://localhost:5000/api/items/login-user?userId=' + user_id + '&name=' + userName;
+                                const urlApi = API_URL + 'login-user?userId=' + user_id + '&name=' + userName;
                                 const internalApiLogin = await fetch(urlApi, {
                                     method: 'POST',
                                     headers: {

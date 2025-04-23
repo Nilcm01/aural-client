@@ -11,10 +11,12 @@ import ReproductionModal from "../components/reproductionModal";
 import { FooterBarButton } from "../components/footerBar";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
+
 // URL del backend
-const GET_PUBLICATIONS_URL = 'http://localhost:5000/api/items/publications';
-const ADD_PUBLICATION_URL = 'http://localhost:5000/api/items/addPublications';
-const GET_USERS_URL = 'http://localhost:5000/api/items/users';
+const GET_PUBLICATIONS_URL = API_URL + 'publications';
+const ADD_PUBLICATION_URL = API_URL + 'addPublications';
+const GET_USERS_URL = API_URL + 'users';
 
 export default function TabsLayout() {
   const { token, loadToken } = useToken();

@@ -2,9 +2,12 @@ import { Text, View } from "react-native";
 // import FooterBar from "../components/footerBar";
 import AppBar from "../components/appBar";  
 import HomeMenu from "../components/homeMenu";  
+import { useReproBarVisibility } from "../components/WebPlayback";
 
 
 export default function Index() {
+  const { showReproBar } = useReproBarVisibility();
+  showReproBar(true);
   return (
     // This is the main container for the page
     <View

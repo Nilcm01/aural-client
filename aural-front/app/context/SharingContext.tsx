@@ -1,8 +1,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { router } from 'expo-router';
 
-const PORT = '5000';
-const API_AURAL = `http://localhost:${PORT}/api/items/`;
+const API_AURAL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 const API_SPOTIFY = `https://api.spotify.com/v1/`;
 
 // Define content types for sharing

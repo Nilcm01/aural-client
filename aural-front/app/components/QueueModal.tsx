@@ -46,7 +46,7 @@ const QueueModal: React.FC<QueueModalProps> = ({
         style={styles.queueImage}
       />
       <Text style={styles.queueText}>{item.name}</Text>
-      <TouchableOpacity onPress={() => onRemoveItem(item.id)}>
+      <TouchableOpacity onPress={() => onRemoveItem(item.id)} style={{display: 'none'}}>
         <MaterialIcons name="delete" size={24} color="white" />
       </TouchableOpacity>
     </View>
@@ -82,6 +82,7 @@ const QueueModal: React.FC<QueueModalProps> = ({
               keyExtractor={(item, index) => `${item.id}-${index}`}
               renderItem={renderQueueItem}
               contentContainerStyle={styles.queueContent}
+              showsVerticalScrollIndicator={false}
             />
           )}
           {/* Botón para borrar toda la cola */}
@@ -160,6 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     alignSelf: 'center',
+    display: 'none',
   },
   controlButtonText: {
     marginLeft: 10,

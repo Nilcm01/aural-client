@@ -43,6 +43,8 @@ interface ReproductionModalProps {
   onClearQueue: () => void;           // Agregado
 }
 
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
+
 const ReproductionModal: React.FC<ReproductionModalProps> = ({
   tokenSpotify,
   visible,
@@ -68,7 +70,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     }
   }, [visible]);
 
-  console.log("ReproductionModal rendered, visible:", visible);
+  //console.log("ReproductionModal rendered, visible:", visible);
   const [queueVisible, setQueueVisible] = useState(false);
 
   const openQueueModal = () => {
@@ -112,9 +114,9 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     const getRating = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://localhost:5000/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
+          const response = await fetch(`${API_URL}punctuations-by-entity?entityId=${track.id}&entityType=song`);
           const result = await response.json();
-  
+
           if (response.ok) {
             setRating(result.averageScore)
             console.log('Rating fetched successfully:', result.averageScore);
@@ -132,26 +134,26 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     const getRecentComments = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://localhost:5000/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
+          const response = await fetch(`${API_URL}comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
           if (response.ok) {
-          setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
-          console.log("Recent Comments fetched successfully:", result.slice(-3));
-        } else {
-          console.error("Failed getting recent comments from api:", result);
-          setErrorMessage("Failed to load comments.");
-        }
+            setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
+            console.log("Recent Comments fetched successfully:", result.slice(-3));
+          } else {
+            console.error("Failed getting recent comments from api:", result);
+            setErrorMessage("Failed to load comments.");
+          }
 
         } catch (error) {
           console.error("Error fetching recent comments:", error);
         }
       }
     };
-  
+
     getRating();
     getRecentComments();
-  }, [token, track]);  
+  }, [token, track]);
 
   // Function to handle the submission of a star rating
   const handleRateSubmit = async () => {
@@ -159,7 +161,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (rating > 0) {
       try {
         // API call in order to do a rating
-        const response = await fetch('http://localhost:5000/api/items/create-punctuation', {
+        const response = await fetch(API_URL + 'create-punctuation', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -194,12 +196,12 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   };
 
   // Function to handle the submission of a comment 
-  const handleCommentSubmit = async () => { 
+  const handleCommentSubmit = async () => {
     // Checking that there's a comment
     if (comment.trim()) {
       try {
         // API call in order to do a comment
-        const response = await fetch('http://localhost:5000/api/items/create-comment', {
+        const response = await fetch(API_URL + 'create-comment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -306,7 +308,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
             </View>
 
             <View style={styles.controls2}>
-            <TouchableOpacity onPress={() => setShowComsAndRatingModal(true)}>
+              <TouchableOpacity onPress={() => setShowComsAndRatingModal(true)}>
                 <Ionicons name="chatbubble-outline" size={30} color="white" />
               </TouchableOpacity>
 
@@ -332,11 +334,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           token={tokenSpotify}
           visible={queueVisible}
           onClose={() => setQueueVisible(false)}
-          onReload={() => { console.log("Reloading queue information..."); }}
+          //onReload={() => { console.log("Reloading queue information..."); }}
           queue={queue}
           onRemoveItem={onRemoveItem}
           onClearQueue={onClearQueue}
-          onSkip={() => { /* Puedes definir aquí alguna acción para saltar la pista */ }}
+          onSkip={() => player?.nextTrack()}
         />
       )}
 

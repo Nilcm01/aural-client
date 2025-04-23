@@ -6,13 +6,15 @@ import PublishModal from '../components/publishModal';
 import PublicationsModal from '../components/publicationsModal';
 import { useToken } from '../context/TokenContext';
 import { router } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const { width } = Dimensions.get('window');
 
 // Rutas del backend (asegúrate de que estas rutas sean correctas)
-const GET_PUBLICATIONS_URL = 'http://localhost:5000/api/items/publications';
-const ADD_PUBLICATION_URL = 'http://localhost:5000/api/items/addPublications';
+const GET_PUBLICATIONS_URL = API_URL + 'publications';
+const ADD_PUBLICATION_URL = API_URL + 'addPublications';
 
 const SimplePublicationScreen: React.FC = () => {
   const { token } = useToken();
@@ -121,7 +123,25 @@ const SimplePublicationScreen: React.FC = () => {
             name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
             size={30}
             color="white"
-            onPress={() => { }}
+            onPress={() => {
+              if (token) {
+                router.push("/profileScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
+          />
+          <Ionicons
+            name="people-circle-outline"
+            size={30}
+            color="white"
+            onPress={() => {
+              if (token) {
+                router.push("/FriendsScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
           />
         </View>
       </View>

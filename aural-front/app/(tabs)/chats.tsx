@@ -1,11 +1,12 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useEffect, useState, useCallback } from "react";
 import { router } from "expo-router";
 import { View, Text, Pressable, ScrollView, StyleSheet } from "react-native";
 import { useToken } from "../context/TokenContext";
+import { useReproBarVisibility } from "../components/WebPlayback";
 import { useFocusEffect } from "@react-navigation/native";
 
-const LHPORT = '5000';
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 interface Chat {
     _id: string;
@@ -19,6 +20,8 @@ interface Chat {
 
 const ChatsScreen = () => {
     const { token } = useToken();
+    const { showReproBar } = useReproBarVisibility();
+    showReproBar(true); // Hide the playback bar
     const [chats, setChats] = useState<Chat[]>([]);
     const [loadingChats, setLoadingChats] = useState(true);
     const [loadingFriends, setLoadingFriends] = useState(true);
@@ -38,7 +41,7 @@ const ChatsScreen = () => {
         useCallback(() => {
             const fetchChats = async () => {
                 try {
-                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/chats-from-user?userId=' + token?.user_id;
+                    const urlApi = API_URL + 'chats-from-user?userId=' + token?.user_id;
                     const getChatsFromUserApi = fetch(urlApi, {
                         method: 'GET',
                         headers: {
@@ -61,7 +64,7 @@ const ChatsScreen = () => {
                         } else {
                             return a.name.localeCompare(b.name);
                         }
-                    }); 
+                    });
                     setChats(chats);
 
                     setChatsItems(
@@ -109,7 +112,7 @@ const ChatsScreen = () => {
 
             const fetchFriends = async () => {
                 try {
-                    const urlApi = 'http://localhost:' + LHPORT + '/api/items/friends?userId=' + token?.user_id;
+                    const urlApi = API_URL + 'friends?userId=' + token?.user_id;
                     const getFriendsFromUserApi = fetch(urlApi, {
                         method: 'GET',
                         headers: {
@@ -177,7 +180,7 @@ const ChatsScreen = () => {
 
         // First, refresh the chats list to ensure it's current
         try {
-            const urlApi = 'http://localhost:' + LHPORT + '/api/items/chats-from-user?userId=' + token?.user_id;
+            const urlApi = API_URL + 'chats-from-user?userId=' + token?.user_id;
             const result = await fetch(urlApi, {
                 method: 'GET',
                 headers: {
@@ -210,7 +213,7 @@ const ChatsScreen = () => {
             }
 
             // Create new chat if none exists
-            const createUrlApi = `http://localhost:${LHPORT}/api/items/create-chat`;
+            const createUrlApi = API_URL + 'create-chat';
             const name = "DM " + token.user_id + " " + friend;
             const response = await fetch(createUrlApi, {
                 method: "POST",
@@ -251,7 +254,7 @@ const ChatsScreen = () => {
         // -> redirect to the chat
 
         try {
-            const urlApi = `http://localhost:${LHPORT}/api/items/create-chat`;
+            const urlApi = API_URL + 'create-chat';
             const response = await fetch(urlApi, {
                 method: "POST",
                 headers: {
@@ -291,11 +294,40 @@ const ChatsScreen = () => {
         <View key={"chat-list-header"} style={{ flex: 1, backgroundColor: "#000000", paddingTop: 81 }}>
             <View className="app-bar" style={{
                 height: 80, backgroundColor: "#262626",
-                alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "center", zIndex: 10
+                alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
             }}>
                 <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}>
                     {createChat ? "New chat" : "Chats"}
                 </Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
+                        {token ? `${token.user_id}` : "No Token"}
+                    </Text>
+                    <MaterialIcons
+                        name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
+                        size={30}
+                        color="white"
+                        onPress={() => {
+                            if (token) {
+                                router.push("/profileScreen");
+                            } else {
+                                router.push("/loginScreen"); // Navigate to login screen
+                            }
+                        }}
+                    />
+                    <Ionicons
+                        name="people-circle-outline"
+                        size={30}
+                        color="white"
+                        onPress={() => {
+                            if (token) {
+                                router.push("/FriendsScreen");
+                            } else {
+                                router.push("/loginScreen"); // Navigate to login screen
+                            }
+                        }}
+                    />
+                </View>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
@@ -348,7 +380,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         position: "absolute",
-        bottom: 100,
+        bottom: 140,
         right: 20
     }
 });
