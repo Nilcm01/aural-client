@@ -301,7 +301,7 @@ const SearchScreen: React.FC = () => {
 
   const renderAlbumItem = ({ item }: { item: ContentItem }) => (
     <View style={styles.resultItem}>
-      <TouchableOpacity onPress={() => console.log("Album clicked:", item.id)}>
+      <TouchableOpacity onPress={() => navigation.push('AlbumInfo', { album: item })}>  {/**On Press redirect to Album Info */}
         <Image
           source={{
             uri: item.images && item.images.length > 0
@@ -354,11 +354,11 @@ const SearchScreen: React.FC = () => {
       </View>
     );
   };
-  
+
 
   const renderArtistItem = ({ item }: { item: ContentItem }) => (
     <View style={styles.resultItem}>
-      <TouchableOpacity onPress={() => console.log("Artist clicked:", item.id)}>
+      <TouchableOpacity onPress={() => navigation.push('ArtistInfo', { artist: item })}>   {/**On Press redirect to Artist Info */}
         <Image
           source={{
             uri: item.images && item.images.length > 0
