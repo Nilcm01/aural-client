@@ -16,10 +16,13 @@ type TrackType = {
   name: string;
   uri?: string;
   album: {
+    id: string;
     name?: string;
     images: { url: string }[];
   };
-  artists: { name: string }[];
+  artists: {
+    id: string; name: string 
+}[];
 };
 
 type Props = {
@@ -29,9 +32,13 @@ type Props = {
 const emptyTrack: TrackType = {
   name: '',
   album: {
-    images: [{ url: '' }]
+    images: [{ url: '' }],
+    id: ''
   },
-  artists: [{ name: '' }]
+  artists: [{
+    name: '',
+    id: ''
+  }]
 };
 
 var reproBarVisible = false;
@@ -57,7 +64,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
   const [currentTrack, setTrack] = useState<TrackType>(emptyTrack);
   const [reproductionBarVisible, setReproductionBarVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [info, setInfo] = useState<{ id: string; name: string; artist: string; album: string; image: string; uri: string }[]>([]);
+  const [info, setInfo] = useState<{ id: string; name: string; artist: string; artistId?: string; album: string; albumId?: string; image: string; uri: string }[]>([]);
   const [currentPosition, setCurrentPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isShuffle, setShuffle] = useState(false);
@@ -373,7 +380,9 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                 id: currentTrack.id || Date.now().toString(),
                 name: currentTrack.name,
                 artist: currentTrack.artists[0]?.name || 'Unknown Artist',
-                album: currentTrack.album?.name || 'Unknown Album',
+                artistId: currentTrack.artists[0]?.id || '',
+                album: currentTrack.album.name || 'Unknown Album',
+                albumId: currentTrack.album.id || '',
                 image: currentTrack.album?.images[0]?.url || '',
                 uri: currentTrack.uri || ''
               };

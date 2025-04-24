@@ -1,18 +1,20 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { router } from "expo-router";
-import { View, Text, Button, ScrollView, Pressable, TextInput, Alert } from "react-native";
+import { View, Text, Button, ScrollView, Pressable, TextInput, Alert, Image } from "react-native";
 import { Modal } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import { useToken } from "../context/TokenContext";
 import { useReproBarVisibility } from "../components/WebPlayback";
 import { Picker } from '@react-native-picker/picker'; // Import the Picker component
+import { useSharing } from "../context/SharingContext"; // Import the SharingContext
 
 const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 export default function Chat() {
     const { token } = useToken();
+    const { linkGet, linkConsume } = useSharing();
     const { showReproBar } = useReproBarVisibility();
     showReproBar(false); // Hide the playback bar
 
@@ -221,57 +223,155 @@ export default function Chat() {
         }, [chatId])
     );
 
+    const [messageList, setMessageList] = useState<JSX.Element[]>([]);
+
     // Create a list of messages to display
-    const messageList = messages.map((message) => {
-        const user = userList.find(user => user.id === message.userId);
+    useEffect(() => {
+        const fetchMessageElements = async () => {
+            const listPromises = messages.map(async (message) => {
+                const user = userList.find(user => user.id === message.userId);
 
-        //// Date formatting
+                //// Date formatting
 
-        const dt_now = new Date();
-        const dt = new Date(message.dt);
-        // If day is less than 10, add a leading zero
-        const dt_day = dt.getDate() < 10 ? "0" + dt.getDate() : dt.getDate();
-        const dt_month = dt.getMonth() < 10 ? "0" + (dt.getMonth() + 1) : dt.getMonth() + 1;
-        const dt_year = dt.getFullYear();
-        const dt_hour = dt.getHours() < 10 ? "0" + dt.getHours() : dt.getHours();
-        const dt_minute = dt.getMinutes() < 10 ? "0" + dt.getMinutes() : dt.getMinutes();
-        let dt_string = "";
+                const dt_now = new Date();
+                const dt = new Date(message.dt);
+                // If day is less than 10, add a leading zero
+                const dt_day = dt.getDate() < 10 ? "0" + dt.getDate() : dt.getDate();
+                const dt_month = dt.getMonth() < 10 ? "0" + (dt.getMonth() + 1) : dt.getMonth() + 1;
+                const dt_year = dt.getFullYear();
+                const dt_hour = dt.getHours() < 10 ? "0" + dt.getHours() : dt.getHours();
+                const dt_minute = dt.getMinutes() < 10 ? "0" + dt.getMinutes() : dt.getMinutes();
+                let dt_string = "";
 
-        //// Check for partial matches
-        if (dt_now.getDate() === dt_day) {
-            dt_string = "avui - " + dt_hour + ":" + dt_minute;
-        } else if (dt_now.getMonth() === dt_month) {
-            // Check for Yesterday
-            if (dt_now.getDate() - 1 === dt_day) {
-                dt_string = "ahir - " + dt_hour + ":" + dt_minute;
-            } else if (dt_now.getDate() - 2 === dt_day) {
-                dt_string = "abans-d'ahir - " + dt_hour + ":" + dt_minute;
-            } else {
-                dt_string = dt_day + "/" + dt_month + " - " + dt_hour + ":" + dt_minute;
-            }
-        } else if (dt_now.getFullYear() === dt_year) {
-            dt_string = dt_day + "/" + dt_month + " - " + dt_hour + ":" + dt_minute;
-        } else {
-            dt_string = dt_day + "/" + dt_month + "/" + dt_year + " - " + dt_hour + ":" + dt_minute;
-        }
+                //// Check for partial matches
+                /*if (dt_now.getDate() === dt_day) {
+                    dt_string = "avui - " + dt_hour + ":" + dt_minute;
+                } else if (dt_now.getMonth() === dt_month) {
+                    // Check for Yesterday
+                    if (dt_now.getDate() - 1 === dt_day) {
+                        dt_string = "ahir - " + dt_hour + ":" + dt_minute;
+                    } else if (dt_now.getDate() - 2 === dt_day) {
+                        dt_string = "abans-d'ahir - " + dt_hour + ":" + dt_minute;
+                    } else {
+                        dt_string = dt_day + "/" + dt_month + " - " + dt_hour + ":" + dt_minute;
+                    }
+                } else if (dt_now.getFullYear() === dt_year) {
+                    dt_string = dt_day + "/" + dt_month + " - " + dt_hour + ":" + dt_minute;
+                } else {
+                    dt_string = dt_day + "/" + dt_month + "/" + dt_year + " - " + dt_hour + ":" + dt_minute;
+                }*/
+                if (dt_now.getFullYear() === dt_year) {
+                    dt_string = dt_day + "/" + dt_month + " - " + dt_hour + ":" + dt_minute;
+                } else {
+                    dt_string = dt_day + "/" + dt_month + "/" + dt_year + " - " + dt_hour + ":" + dt_minute;
+                }
 
+                // Check for content links
+                const regex = /aural:\/share\/(content|user)\/([^\/]+)(?:\/([^\/]+))?/;
+                const match = message.txt.match(regex);
 
-        return (
-            <View style={{ display: "flex", flexDirection: "column", justifyContent: "center", margin: 10, backgroundColor: "#262626", padding: 10, borderRadius: 10 }} >
+                var msg: JSX.Element | undefined = undefined;
 
-                <View style={{ display: "flex", flexDirection: "row", justifyContent: "center", margin: 1 }} >
-                    <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: "auto" }}>
-                        {user ? user.username : "Unknown User"}
-                    </Text>
-                    <Text style={{ color: "#A6A6A6", marginLeft: "auto" }}>
-                        {dt_string}
-                    </Text>
-                </View>
+                if (match) {
+                    const [, linkType, param1, param2] = match;
+                    if (linkType === 'user') {
 
-                <Text style={{ color: "white", fontWeight: "regular", fontSize: 18 }}>{message.txt}</Text>
-            </View>
-        );
-    });
+                    } else if (linkType === 'content') {
+                        switch (param1) {
+                            case 'song': {
+                                const data = await linkGet(message.txt);
+                                msg = (
+                                    <Pressable
+                                        onPress={() => {
+                                            linkConsume(message.txt);
+                                        }}
+                                        style={{ backgroundColor: "#333333", padding: 10, borderRadius: 10, margin: 5, display: "flex", flexDirection: "row", justifyContent: "flex-start", alignItems: "center" }}
+                                    >
+                                        <Image source={{ uri: data?.imageUrl }} style={{ width: 100, height: 100, borderRadius: 0, }} />
+                                        <View style={{ display: "flex", flexDirection: "column", rowGap: 10, marginLeft: 10 }}>
+                                            <Text style={{ color: "white", fontWeight: "regular", fontSize: 18 }} numberOfLines={3} ellipsizeMode="tail">{data?.name}</Text>
+                                            <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 12, fontStyle: 'italic' }} numberOfLines={3} ellipsizeMode="tail">{data?.album}</Text>
+                                            <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 12 }} numberOfLines={3} ellipsizeMode="tail">{data?.artist}</Text>
+                                        </View>
+                                    </Pressable>
+                                );
+                                break;
+                            };
+
+                            case 'album': {
+                                const data = await linkGet(message.txt);
+                                msg = (
+                                    <Pressable
+                                        onPress={() => {
+                                            linkConsume(message.txt);
+                                        }}
+                                        style={{ backgroundColor: "#333333", padding: 10, borderRadius: 10, margin: 5, display: "flex", flexDirection: "row", justifyContent: "flex-start", alignItems: "center" }}
+                                    >
+                                        <Image source={{ uri: data?.imageUrl }} style={{ width: 100, height: 100, borderRadius: 0, }} />
+                                        <View style={{ display: "flex", flexDirection: "column", rowGap: 10, marginLeft: 10, flex: 1 }}>
+                                            <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 10, fontStyle: 'italic' }}>Album:</Text>
+                                            <Text style={{ color: "white", fontWeight: "regular", fontSize: 18 }} numberOfLines={3} ellipsizeMode="tail">{data?.name}</Text>
+                                            <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 12 }} numberOfLines={3} ellipsizeMode="tail">{data?.artist}</Text>
+                                        </View>
+                                    </Pressable>
+                                );
+                                break;
+                            };
+
+                            case 'artist': {
+                                const data = await linkGet(message.txt);
+                                msg = (
+                                    <Pressable
+                                        onPress={() => {
+                                            linkConsume(message.txt);
+                                        }}
+                                        style={{ backgroundColor: "#333333", padding: 10, borderRadius: 10, margin: 5, display: "flex", flexDirection: "row", justifyContent: "flex-start", alignItems: "center" }}
+                                    >
+                                        <Image source={{ uri: data?.imageUrl }} style={{ width: 100, height: 100, borderRadius: 0, }} />
+                                        <View style={{ display: "flex", flexDirection: "column", rowGap: 10, marginLeft: 10, flex: 1 }}>
+                                            <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 10, fontStyle: 'italic' }}>Artist:</Text>
+                                            <Text style={{ color: "white", fontWeight: "regular", fontSize: 18 }} numberOfLines={3} ellipsizeMode="tail">{data?.name}</Text>
+                                        </View>
+                                    </Pressable>
+                                );
+                                break;
+                            };
+
+                        }
+                    }
+                }
+
+                else {
+                    msg = (
+                        <Text style={{ color: "white", fontWeight: "regular", fontSize: 18 }}>{message.txt}</Text>
+                    );
+                }
+
+                return (
+                    <View key={message.dt} style={{ display: "flex", flexDirection: "column", justifyContent: "center", margin: 10, backgroundColor: "#262626", padding: 10, borderRadius: 10 }} >
+
+                        <View style={{ display: "flex", flexDirection: "row", justifyContent: "center", margin: 1 }} >
+                            <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: "auto" }}>
+                                {user ? user.username : "Unknown User"}
+                            </Text>
+                            <Text style={{ color: "#A6A6A6", marginLeft: "auto" }}>
+                                {dt_string}
+                            </Text>
+                        </View>
+
+                        {msg}
+                    </View>
+                );
+            });
+
+            // Wait for all promises to resolve
+            const resolvedList = await Promise.all(listPromises);
+            // Filter out undefined values
+            setMessageList(resolvedList.filter((item): item is JSX.Element => item !== undefined));
+        };
+
+        fetchMessageElements();
+    }, [messages, userList]);
 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editedGroupName, setEditedGroupName] = useState<string>();

@@ -1,4 +1,5 @@
 import { MaterialIcons, Ionicons, AntDesign, Feather } from '@expo/vector-icons';
+import Clipboard from '@react-native-clipboard/clipboard';
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
@@ -14,12 +15,15 @@ import {
 } from 'react-native';
 import QueueModal from './QueueModal';
 import { useToken } from "./../context/TokenContext";
+import { useSharing } from './../context/SharingContext';
 
 export interface TrackInfo {
   id: string;
   name: string;
   artist: string;
+  artistId?: string;
   album: string;
+  albumId?: string;
   image: string;
   uri: string;
 }
@@ -88,6 +92,46 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  //// ACTIONS
+  // Share
+  const { linkCreate } = useSharing();
+  const shareLink = () => {
+    const link = linkCreate('song', info[0].id);
+    console.log("Sharing link:", link);
+    // Copy the link to the clipboard
+    Clipboard.setString(link);
+  };
+  const shareAlbumLink = async () => {
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${info[0].id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token?.access_token}`
+      }
+    });
+    if (!response.ok) throw new Error(`Failed to fetch track data`);
+    const data = await response.json();
+
+    const link = linkCreate('album', data.album.id);
+    console.log("Sharing album link:", link);
+    // Copy the link to the clipboard
+    Clipboard.setString(link);
+  };
+  const shareArtistLink = async () => {
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${info[0].id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token?.access_token}`
+      }
+    });
+    if (!response.ok) throw new Error(`Failed to fetch track data`);
+    const data = await response.json();
+
+    const link = linkCreate('artist', data.artists[0].id);
+    console.log("Sharing album link:", link);
+    // Copy the link to the clipboard
+    Clipboard.setString(link);
+  };
+
   //// COMMENTS AND RATING
   // Define comment interface
   interface Comment {
@@ -101,6 +145,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
   // State for rating and comments modal visibility
   const [showComsAndRatingModal, setShowComsAndRatingModal] = useState(false);
+  const [showOtherActionsModal, setShowOtherActionsModal] = useState(false);
   const { token } = useToken();
   const track = info[0];  // info[id]
   const userId = token?.user_id // user id
@@ -115,7 +160,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       if (track && token) {
         try {
           const response = await fetch(`${API_URL}punctuations-by-entity?entityId=${track.id}&entityType=song`);
-          
+
           if (response.status === 200) {
             const result = await response.json();
             setRating(result.averageScore)
@@ -249,7 +294,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <MaterialIcons name="arrow-back-ios" size={35} color="white" style={{ left: 0 }} />
               </TouchableOpacity>
               <Text style={styles.title}>Now listening</Text>
-              <TouchableOpacity onPress={() => {/* Open options modal */ }}>
+              <TouchableOpacity onPress={() => setShowOtherActionsModal(true)}>
                 <MaterialIcons name="menu" size={40} color="white" style={{ left: 0 }} />
               </TouchableOpacity>
             </View>
@@ -405,6 +450,58 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                   <Text style={styles.emptyComments}>No comments available.</Text> // Display a message if no comments
                 )}
               </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Other actions */}
+      {showOtherActionsModal && (
+        <Modal visible={showOtherActionsModal} transparent animationType="slide" onRequestClose={() => setShowOtherActionsModal(false)}>
+          <View style={styles.otherActionsModalOverlay}>
+            <View style={styles.otherActionsModalContent}>
+
+              {/* Close button */}
+              <View style={styles.otherActionsCloseButton}>
+                <TouchableOpacity onPress={() => setShowOtherActionsModal(false)}>
+                  <MaterialIcons name="close" size={30} color="#f05858" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.title}>Actions</Text>
+
+              <TouchableOpacity onPress={() => {/* Add to library */ }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Add to Library</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => {/* Add to playlist */ }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Add to Playlist</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => {/* Start session */ }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Start a Session</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => {/* Go to Album */ }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Go to Album</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => {/* Go to artist */ }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Go to Artist</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => { shareLink(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Copy this song's link</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={async () => { await shareAlbumLink(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Copy this song's album link</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => { shareArtistLink(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Copy this song's artist link</Text>
+              </TouchableOpacity>
+
             </View>
           </View>
         </Modal>
@@ -590,6 +687,44 @@ const styles = StyleSheet.create({
   },
   emptyComments: {
     color: '#f05858',
+  },
+  otherActionsModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+    width: '100%',
+
+  },
+  otherActionsModalContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    maxHeight: '100%',
+    backgroundColor: '#262626',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  otherActionsCloseButton: {
+    position: 'absolute',
+    color: '#f05858',
+    top: 20,
+    left: 20,
+    zIndex: 1,
+  },
+  otherActionsList: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#333',
+    borderRadius: 5,
+    width: '100%',
+    alignItems: 'center',
   },
 });
 

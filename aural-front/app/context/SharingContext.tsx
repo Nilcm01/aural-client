@@ -1,4 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
+import { useToken } from './TokenContext'
 import { router } from 'expo-router';
 
 const API_AURAL = 'https://aural-454910.ew.r.appspot.com/api/items/';
@@ -31,6 +32,8 @@ const SharingContext = createContext<SharingContextType | undefined>(undefined);
 
 // Provider component
 export const SharingProvider = ({ children }: { children: ReactNode }) => {
+    const { token } = useToken();
+
     // Function to linkCreate a sharing link - ok
     const linkCreate = (contentType: ContentType, contentId: string): string => {
         if (contentType === 'user') {
@@ -149,8 +152,18 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
     // Helper function to fetch content data based on type
     const fetchContentData = async (contentId: string, contentType: ContentType): Promise<ContentData | null> => {
         try {
-            const endpoint = `${API_SPOTIFY}${contentType}?id=${contentId}`;
-            const response = await fetch(endpoint);
+            var type = contentType.toString();
+            if       (contentType === 'song')      type = 'tracks';
+            else if  (contentType === 'playlist')  type = 'playlists';
+            else if  (contentType === 'artist')    type = 'artists';
+            else if  (contentType === 'album')     type = 'albums';
+            const response = await fetch(`${API_SPOTIFY}${type}/${contentId}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token?.access_token}`
+                }
+            });
+
             if (!response.ok) throw new Error(`Failed to fetch ${contentType} data`);
 
             const data = await response.json();
@@ -162,24 +175,24 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
                         id: contentId,
                         type: contentType,
                         name: data.name || data.title,
-                        album: data.album,
-                        artist: data.artist,
-                        imageUrl: data.imageUrl
+                        album: data.album.name,
+                        artist: data.artists[0].name,
+                        imageUrl: data.album.images[0]?.url
                     };
                 case 'album':
                     return {
                         id: contentId,
                         type: contentType,
                         name: data.name || data.title,
-                        artist: data.artist,
-                        imageUrl: data.imageUrl
+                        artist: data.artists[0].name,
+                        imageUrl: data.images[0]?.url
                     };
                 case 'artist':
                     return {
                         id: contentId,
                         type: contentType,
                         name: data.name,
-                        imageUrl: data.imageUrl
+                        imageUrl: data.images[0]?.url
                     };
                 case 'playlist':
                     return {
