@@ -115,13 +115,13 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       if (track && token) {
         try {
           const response = await fetch(`${API_URL}punctuations-by-entity?entityId=${track.id}&entityType=song`);
-          const result = await response.json();
-
-          if (response.ok) {
+          
+          if (response.status === 200) {
+            const result = await response.json();
             setRating(result.averageScore)
             console.log('Rating fetched successfully:', result.averageScore);
           } else {
-            console.error("Failed getting rating from api:", result);
+            console.error("Failed getting rating from api:", response.status, response.statusText);
             setErrorMessage("Failed to load rating.");
           }
 
@@ -135,13 +135,13 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       if (track && token) {
         try {
           const response = await fetch(`${API_URL}comments-by-entity?contentId=${track.id}&entityType=song`);
-          const result = await response.json();
 
-          if (response.ok) {
-            setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
-            console.log("Recent Comments fetched successfully:", result.slice(-3));
+          if (response.status === 200) {
+            const result = await response.json();
+            setRecentComments(result.reverse());
+            console.log("Recent Comments fetched successfully:", result);
           } else {
-            console.error("Failed getting recent comments from api:", result);
+            console.error("Failed getting recent comments from api:", response.status, response.statusText);
             setErrorMessage("Failed to load comments.");
           }
 
@@ -358,7 +358,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
               {/* Rating section */}
               <View style={styles.ratingContainer}>
-                <Text style={styles.comsAndRatingTitle}>Rate this song</Text>
+                <Text style={styles.comsAndRatingTitle}>Your rating for this song</Text>
                 <View style={styles.starsContainer}>
                   {[1, 2, 3, 4, 5].map(star => (
                     <TouchableOpacity key={star} onPress={() => setRating(star)}>
@@ -388,7 +388,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
               {/* Display recent comments */}
               <View style={styles.recentCommentsSection}>
-                <Text style={styles.comsAndRatingTitle}>Recent Comments</Text>
+                <Text style={styles.comsAndRatingTitle}>Comments</Text>
                 <View style={styles.separator} />
                 {recentComments.length > 0 ? (
                   <FlatList
