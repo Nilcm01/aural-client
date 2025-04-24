@@ -288,7 +288,7 @@ export default function Chat() {
                                         style={{ backgroundColor: "#333333", padding: 10, borderRadius: 10, margin: 5, display: "flex", flexDirection: "row", justifyContent: "flex-start", alignItems: "center" }}
                                     >
                                         <Image source={{ uri: data?.imageUrl }} style={{ width: 100, height: 100, borderRadius: 0, }} />
-                                        <View style={{ display: "flex", flexDirection: "column", rowGap: 10, marginLeft: 10 }}>
+                                        <View style={{ display: "flex", flexDirection: "column", rowGap: 10, marginLeft: 10, flex: 1 }}>
                                             <Text style={{ color: "white", fontWeight: "regular", fontSize: 18 }} numberOfLines={3} ellipsizeMode="tail">{data?.name}</Text>
                                             <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 12, fontStyle: 'italic' }} numberOfLines={3} ellipsizeMode="tail">{data?.album}</Text>
                                             <Text style={{ color: "#A6A6A6", fontWeight: "regular", fontSize: 12 }} numberOfLines={3} ellipsizeMode="tail">{data?.artist}</Text>
