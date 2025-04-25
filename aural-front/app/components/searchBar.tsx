@@ -14,10 +14,12 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import HistoryContainer from "../components/historyContainer";
+import { router, useRouter } from 'expo-router';
 import { useNavigation } from "@react-navigation/native";
 import { useToken } from "../context/TokenContext";
 import QueueModal from "../components/QueueModal";
 import { useQueue } from "../context/QueueContext";
+import AlbumInfo from "./checkAlbumInfo";
 
 // Interfície per als resultats de cerca d'usuaris
 interface UserMatch {
@@ -301,7 +303,18 @@ const SearchScreen: React.FC = () => {
 
   const renderAlbumItem = ({ item }: { item: ContentItem }) => (
     <View style={styles.resultItem}>
-      <TouchableOpacity onPress={() => navigation.push('AlbumInfo', { album: item })}>  {/**On Press redirect to Album Info */}
+      <TouchableOpacity
+        onPress={() => {
+          router.push({
+            pathname: '/components/checkAlbumInfo',
+            params: {
+              type: item.type,
+              name: item.name,
+              // artists: item.artists || [],
+            },
+          });
+        }}
+      >
         <Image
           source={{
             uri: item.images && item.images.length > 0
@@ -358,7 +371,15 @@ const SearchScreen: React.FC = () => {
 
   const renderArtistItem = ({ item }: { item: ContentItem }) => (
     <View style={styles.resultItem}>
-      <TouchableOpacity onPress={() => navigation.push('ArtistInfo', { artist: item })}>   {/**On Press redirect to Artist Info */}
+      <TouchableOpacity onPress={() => {
+          router.push({
+            pathname: '/components/checkArtistInfo',
+            params: {
+              type: item.type,
+              name: item.name,
+            },
+          });
+        }}>
         <Image
           source={{
             uri: item.images && item.images.length > 0
@@ -480,7 +501,7 @@ const SearchScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#141218",
+    backgroundColor: '#121212',
     width: "100%",
   },
   scrollContainer: {
