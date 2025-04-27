@@ -1,145 +1,87 @@
-import React from 'react';
-import { View, Text, Image, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRoute } from '@react-navigation/native';
-import { router } from 'expo-router';
+// app/components/AlbumInfo.tsx
+import React,{useState,useEffect} from 'react';
+import {
+  View,Text,Image,FlatList,StyleSheet,TouchableOpacity,
+  ScrollView,ActivityIndicator,Alert
+} from 'react-native';
+import {Ionicons} from '@expo/vector-icons';
+import {useRoute,useNavigation} from '@react-navigation/native';
+import {useToken} from '../context/TokenContext';
 
-const AlbumInfo = () => {
-  
-  const route = useRoute();
-  // const { name, album, artists, year, songs } = route.params;
-  const { name } = route.params;  // Da error pero esta bien, NO MODIFICAR!!
+interface RouteParams { id:string; name:string }
+interface AlbumDetail { images:{url:string}[]; artists:{name:string}[]; release_date:string }
+interface Track { id:string; name:string }
 
-  // Example data
-  const album = {
-    images: [{ }]
-  };
-  const artists = [{ name: 'Post Malone' }];
-  const year = '2019';
-  const songs = [
-    { name: 'Sunflower' },
-    { name: 'Wow.' },
-    { name: 'Circles' },
-    { name: 'Goodbyes' },
-  ];
+const AlbumInfo:React.FC=()=>{
+  const route=useRoute();
+  const nav=useNavigation();
+  const {id,name}=route.params as RouteParams;
+  const {token}=useToken();
 
-  const renderSongItem = ({ item }) => (
-    <View style={styles.songItem}>
-      <Text style={styles.songText}>{item.name}</Text>
-    </View>
-  );
+  const [album,setAlbum]=useState<AlbumDetail|null>(null);
+  const [tracks,setTracks]=useState<Track[]>([]);
+  const [loading,setLoading]=useState(false);
+
+  useEffect(()=>{
+    if(!id||!token?.access_token) return;
+    setLoading(true);
+    (async()=>{
+      try{
+        const [rAlb,rTr]=await Promise.all([
+          fetch(`https://api.spotify.com/v1/albums/${id}`,{headers:{Authorization:`Bearer ${token.access_token}`}}),
+          fetch(`https://api.spotify.com/v1/albums/${id}/tracks`,{headers:{Authorization:`Bearer ${token.access_token}`}})
+        ]);
+        if(!rAlb.ok||!rTr.ok) throw new Error();
+        const alb=await rAlb.json();
+        const tr =await rTr.json();
+        setAlbum(alb);
+        setTracks(tr.items);
+      }catch(e){
+        console.error(e);
+        Alert.alert('Error','No se cargó el álbum.');
+      }finally{setLoading(false);}
+    })();
+  },[id,token]);
+
+  if(loading) return <View style={s.loader}><ActivityIndicator size="large" color="#f05858"/></View>;
+  if(!album) return <View style={s.loader}><Text style={s.error}>Álbum no encontrado.</Text></View>;
+
+  const year=album.release_date.slice(0,4);
+  const renderSong=({item}:{item:Track})=>(<View style={s.songItem}><Text style={s.songText}>{item.name}</Text></View>);
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Arrow */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={30} color="#fff" />
-      </TouchableOpacity>
-
-      {/* Artist Info */}
-      <View style={styles.albumInfoBox}>
-        <View style={styles.albumInfoLeft}>
-          {/* Album Image */}
-          {album?.images && album.images.length > 0 ? (
-            <Image style={styles.albumImage} source={{ uri: album.images[0].url }} />
-          ) : (
-            <Text style={styles.noImageText}>No image available</Text>
-          )}
-        </View>
-        <View style={styles.albumInfoRight}>
-          <Text style={styles.albumName}>{name}</Text>
-          <Text style={styles.artistText}>Artist: {artists.map(artist => artist.name).join(', ')}</Text>
-          <Text style={styles.yearText}>Year: {year}</Text>
+    <ScrollView style={s.container}>
+      <TouchableOpacity style={s.back} onPress={()=>nav.goBack()}><Ionicons name="arrow-back" size={30} color="#fff"/></TouchableOpacity>
+      <View style={s.header}>
+        {album.images[0] ? <Image style={s.image} source={{uri:album.images[0].url}}/> : <Text style={s.noImg}>No image</Text>}
+        <View style={s.info}>
+          <Text style={s.name}>{name}</Text>
+          <Text style={s.artist}>Artist: {album.artists.map(a=>a.name).join(', ')}</Text>
+          <Text style={s.year}>Year: {year}</Text>
         </View>
       </View>
-
-      {/* Songs list */}
-      <View style={styles.songsBox}>
-        <FlatList
-          data={songs}
-          renderItem={renderSongItem}
-          keyExtractor={(item, index) => index.toString()}
-        />
+      <View style={s.list}>
+        <FlatList data={tracks} renderItem={renderSong} keyExtractor={i=>i.id}/>
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-    paddingTop: 10,
-    paddingHorizontal: 10,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    zIndex: 10,
-  },
-  albumInfoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#1A1A1A',
-    padding:20,
-    borderRadius: 10,
-    marginBottom: 20,
-    width: '100%',
-    alignItems: 'center',
-  },
-  albumInfoLeft: {
-    marginRight: 20,
-    marginLeft: 75,
-  },
-  albumImage: {
-    width: 175,
-    height: 175,
-    resizeMode: 'cover',
-    borderRadius: 10,
-  },
-  albumInfoRight: {
-    flex: 1,
-    marginLeft: 20,
-  },
-  albumName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#f05858',
-    marginBottom: 5,
-  },
-  artistText: {
-    fontSize: 18,
-    color: '#fff',
-    marginBottom: 5,
-  },
-  yearText: {
-    fontSize: 16,
-    color: '#bbb',
-    marginBottom: 15,
-  },
-  noImageText: {
-    color: '#fff',
-    fontStyle: 'italic',
-    marginTop: 20,
-  },
-  songsBox: {
-    backgroundColor: '#1A1A1A',
-    width: '100%',
-    padding: 20,
-    borderRadius: 10,
-    marginBottom: 20,
-    borderWidth: 0.5,
-    borderColor: '#f05858',
-  },
-  songItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  songText: {
-    fontSize: 16,
-    color: '#fff',
-  },
+const s=StyleSheet.create({
+  container:{flex:1,backgroundColor:'#121212',padding:10},
+  loader:{flex:1,justifyContent:'center',alignItems:'center'},
+  error:{color:'red'},
+  back:{position:'absolute',top:20,left:20,zIndex:1},
+  header:{flexDirection:'row',marginTop:50,backgroundColor:'#1A1A1A',borderRadius:10,padding:20,alignItems:'center'},
+  image:{width:160,height:160,borderRadius:8},
+  noImg:{color:'#fff',fontStyle:'italic'},
+  info:{flex:1,marginLeft:20},
+  name:{fontSize:28,fontWeight:'bold',color:'#f05858',marginBottom:5},
+  artist:{fontSize:18,color:'#fff',marginBottom:5},
+  year:{fontSize:16,color:'#bbb'},
+  list:{backgroundColor:'#1A1A1A',borderRadius:10,padding:20,marginTop:20,borderColor:'#f05858',borderWidth:0.5},
+  songItem:{padding:10,borderBottomWidth:1,borderBottomColor:'#333'},
+  songText:{color:'#fff'}
 });
 
 export default AlbumInfo;
