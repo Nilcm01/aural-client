@@ -61,6 +61,7 @@ const AlbumInfo:React.FC=()=>{
         </View>
       </View>
       <View style={s.list}>
+        <Text style={s.sectionTitle}>Tracks</Text>
         <FlatList data={tracks} renderItem={renderSong} keyExtractor={i=>i.id}/>
       </View>
     </ScrollView>
@@ -79,6 +80,7 @@ const s=StyleSheet.create({
   name:{fontSize:28,fontWeight:'bold',color:'#f05858',marginBottom:5},
   artist:{fontSize:18,color:'#fff',marginBottom:5},
   year:{fontSize:16,color:'#bbb'},
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#f05858', marginBottom: 10 },
   list:{backgroundColor:'#1A1A1A',borderRadius:10,padding:20,marginTop:20,borderColor:'#f05858',borderWidth:0.5},
   songItem:{padding:10,borderBottomWidth:1,borderBottomColor:'#333'},
   songText:{color:'#fff'}
