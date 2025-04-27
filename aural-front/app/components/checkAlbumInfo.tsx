@@ -72,8 +72,17 @@ const s=StyleSheet.create({
   container:{flex:1,backgroundColor:'#121212',padding:10},
   loader:{flex:1,justifyContent:'center',alignItems:'center'},
   error:{color:'red'},
-  back:{position:'absolute',top:20,left:20,zIndex:1},
-  header:{flexDirection:'row',marginTop:50,backgroundColor:'#1A1A1A',borderRadius:10,padding:20,alignItems:'center'},
+  back:{position:'absolute',top:5,left:10,zIndex:1},
+  header:{
+    flexDirection:'row',
+    marginTop:50,
+    backgroundColor:'#1A1A1A',
+    borderRadius:10,
+    padding:20,
+    alignItems:'center',
+    borderColor:'#f05858',
+    borderWidth:0.5
+  },
   image:{width:160,height:160,borderRadius:8},
   noImg:{color:'#fff',fontStyle:'italic'},
   info:{flex:1,marginLeft:20},
@@ -81,7 +90,14 @@ const s=StyleSheet.create({
   artist:{fontSize:18,color:'#fff',marginBottom:5},
   year:{fontSize:16,color:'#bbb'},
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#f05858', marginBottom: 10 },
-  list:{backgroundColor:'#1A1A1A',borderRadius:10,padding:20,marginTop:20,borderColor:'#f05858',borderWidth:0.5},
+  list:{
+    backgroundColor:'#1A1A1A',
+    borderRadius:10,
+    padding:20,
+    marginTop:20,
+    borderColor:'#f05858',
+    borderWidth:0.5
+  },
   songItem:{padding:10,borderBottomWidth:1,borderBottomColor:'#333'},
   songText:{color:'#fff'}
 });

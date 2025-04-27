@@ -1,4 +1,3 @@
-// components/ArtistInfo.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -123,6 +122,7 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
         <Ionicons name="arrow-back" size={30} color="#fff" />
       </TouchableOpacity>
 
+      {/* Artist Info */}
       <View style={styles.header}>
         {artist.images[0] && (
           <Image source={{ uri: artist.images[0].url }} style={styles.artistImage} />
@@ -136,7 +136,8 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
         )}
       </View>
 
-      <View style={styles.section}>
+      {/* Albums Box */}
+      <View style={styles.box}>
         <Text style={styles.sectionTitle}>Albums</Text>
         <FlatList
           data={albums}
@@ -148,7 +149,8 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
         />
       </View>
 
-      <View style={styles.section}>
+      {/* Top Tracks Box */}
+      <View style={styles.box}>
         <Text style={styles.sectionTitle}>Top Tracks</Text>
         <FlatList data={tracks} keyExtractor={i => i.id} renderItem={renderTrack} />
       </View>
@@ -160,8 +162,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: 'red', textAlign: 'center', marginTop: 50 },
-  backButton: { position: 'absolute', top: 20, left: 20, zIndex: 10 },
-  header: { alignItems: 'center', paddingTop: 80, paddingBottom: 20 },
+  backButton: { position: 'absolute', top: 10, left: 10, zIndex: 1 },
+  header: { alignItems: 'center', paddingTop: 40, paddingBottom: 20 },
   artistImage: { width: 160, height: 160, borderRadius: 80 },
   artistName: { fontSize: 32, fontWeight: 'bold', color: '#f05858', marginTop: 15 },
   followers: { color: '#bbb', marginTop: 5 },
@@ -172,8 +174,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
-  section: { marginTop: 30, paddingHorizontal: 20 },
+  section: { paddingHorizontal: 20 },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#f05858', marginBottom: 10 },
+  box: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 10,
+    padding: 20,
+    marginTop: 20,
+    borderColor: '#f05858',
+    borderWidth: 0.5,
+  },
   albumList: { paddingBottom: 10 },
   albumItem: { marginRight: 15, alignItems: 'center' },
   albumImage: { width: 120, height: 120, borderRadius: 8 },
