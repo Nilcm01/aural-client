@@ -312,9 +312,9 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                     </TouchableOpacity>
                   </View>
                   <View style={styles.info}>
-                    <Text style={styles.trackName}>{track.name}</Text>
-                    <Text style={styles.trackAlbum}>{track.album}</Text>
-                    <Text style={styles.trackArtist}>{track.artist}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.trackName}>{track.name}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.trackAlbum}>{track.album}</Text>
+                    <Text numberOfLines={1} ellipsizeMode="tail" style={styles.trackArtist}>{track.artist}</Text>
                   </View>
                 </View>
               ))}
@@ -559,14 +559,16 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
+    width: "85%",
+    marginHorizontal: "7.5%",
     marginTop: 5
   },
   info: {
     flexDirection: "column",
     alignItems: "flex-start",
-    width: "100%",
-    rowGap: 10,
+    width: "85%",
+    marginHorizontal: "7.5%",
+    rowGap: 10
   },
   trackName: {
     fontWeight: "bold",
