@@ -113,7 +113,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     const getRating = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://localhost:5000/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
+          const response = await fetch(`http://aural-454910.ew.r.appspot.com/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
           const result = await response.json();
   
           if (response.ok) {
@@ -133,7 +133,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     const getRecentComments = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://localhost:5000/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
+          const response = await fetch(`http://aural-454910.ew.r.appspot.com/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
           if (result) {
@@ -160,7 +160,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (rating > 0) {
       try {
         // API call in order to do a rating
-        const response = await fetch('http://localhost:5000/api/items/create-punctuation', {
+        const response = await fetch('http://aural-454910.ew.r.appspot.com/api/items/create-punctuation', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -200,7 +200,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (comment.trim()) {
       try {
         // API call in order to do a comment
-        const response = await fetch('http://localhost:5000/api/items/create-comment', {
+        const response = await fetch('http://aural-454910.ew.r.appspot.com/api/items/create-comment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
