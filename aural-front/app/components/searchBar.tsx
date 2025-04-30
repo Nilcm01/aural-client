@@ -21,6 +21,7 @@ import { useQueue } from "../context/QueueContext";
 import HistoryContainer from "../components/historyContainer";
 import { router } from "expo-router";
 
+
 interface UserMatch {
   target: string;
   rating: number;
@@ -89,7 +90,9 @@ const SearchScreen: React.FC = () => {
   // Search users...
   const fetchAllUsers = async () => {
     try {
+
       const r = await fetch(`${API_URL}users`);
+
       if (!r.ok) throw new Error();
       return await r.json();
     } catch {
