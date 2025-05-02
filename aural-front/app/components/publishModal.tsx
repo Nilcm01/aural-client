@@ -139,7 +139,7 @@ const PublishModal: React.FC<PublishModalProps> = ({
       if (type === 'image' || type === 'video') {
         toSend = await uploadMediaAndGetUrl(content);
       }
-
+      await fetch('')
       await postPublication(toSend);
 
       // reset + callback

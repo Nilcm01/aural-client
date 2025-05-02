@@ -106,13 +106,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const [rating, setRating] = useState<number>(0);
   const [recentComments, setRecentComments] = useState<Comment[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showHateSpeechModal, setShowHateSpeechModal] = useState(false);
 
   // useEffect to load past ratings and comments
   useEffect(() => {
     const getRating = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://localhost:5000/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
+          const response = await fetch(`http://aural-454910.ew.r.appspot.com/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
           const result = await response.json();
   
           if (response.ok) {
@@ -132,10 +133,10 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     const getRecentComments = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://localhost:5000/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
+          const response = await fetch(`http://aural-454910.ew.r.appspot.com/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
-          if (response.ok) {
+          if (result) {
           setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
           console.log("Recent Comments fetched successfully:", result.slice(-3));
         } else {
@@ -159,7 +160,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (rating > 0) {
       try {
         // API call in order to do a rating
-        const response = await fetch('http://localhost:5000/api/items/create-punctuation', {
+        const response = await fetch('http://aural-454910.ew.r.appspot.com/api/items/create-punctuation', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -199,7 +200,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (comment.trim()) {
       try {
         // API call in order to do a comment
-        const response = await fetch('http://localhost:5000/api/items/create-comment', {
+        const response = await fetch('http://aural-454910.ew.r.appspot.com/api/items/create-comment', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -223,14 +224,23 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         }
       } catch (error) {
         console.error("Error submitting comment:", error);
-        setErrorMessage("Not able to submit the comment.");
+        const message = "Your comment was flagged as inappropriate.";
+          console.warn("Hate speech detected:", message);
+        
+          setShowHateSpeechModal(true);
+          setComment(''); // Clear comment to force rewrite
+          setErrorMessage(message); // Optional: show reason
+        
+          setTimeout(() => {
+            setShowHateSpeechModal(false);
+            setErrorMessage(''); // Clear error after modal closes
+          }, 3000);
       }
     } else {
       console.log("No comment entered");
       setErrorMessage("Please write a comment before submitting.");
     }
   };
-  ////
 
   return (
     <View>
@@ -400,9 +410,20 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                     keyExtractor={(item) => item._id}
                   />
                 ) : (
-                  <Text style={styles.emptyComments}>No comments available.</Text> // Display a message if no comments
+                  <Text style={styles.emptyComments}>No comments available</Text> // Display a message if no comments
                 )}
               </View>
+
+              {showHateSpeechModal && (
+              <Modal transparent visible animationType="fade">
+                <View style={styles.hateSpeechOverlay}>
+                  <View style={styles.hateSpeechModal}>
+                    <Text style={styles.hateSpeechText}>Your comment was flagged as inappropriate. Please rewrite it!</Text>
+                  </View>
+                </View>
+              </Modal>
+            )}
+
             </View>
           </View>
         </Modal>
@@ -412,6 +433,25 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  hateSpeechOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  hateSpeechModal: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+    elevation: 5,
+  },
+  hateSpeechText: {
+    color: '#f05858',
+    fontSize: 16,
+    textAlign: 'center',
+  },
   modalOverlay: {
     position: 'absolute',
     top: 0,
