@@ -1,5 +1,5 @@
 import { MaterialIcons, Ionicons, AntDesign, Feather } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Modal,
   View,
@@ -11,6 +11,7 @@ import {
   Dimensions,
   TextInput,
   Button,
+  Alert,
 } from 'react-native';
 import QueueModal from './QueueModal';
 import { useToken } from "./../context/TokenContext";
@@ -39,8 +40,8 @@ interface ReproductionModalProps {
   isOnRepeat: any;
   toggleRepeat: () => void;
   queue: any;
-  onRemoveItem: (id: string) => void;  // Agregado
-  onClearQueue: () => void;           // Agregado
+  onRemoveItem: (id: string) => void;
+  onClearQueue: () => void;
 }
 
 const ReproductionModal: React.FC<ReproductionModalProps> = ({
@@ -61,6 +62,82 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   onRemoveItem,
   onClearQueue,
 }) => {
+  const { token } = useToken();
+  const userId = token?.user_id;
+  const track = info[0];
+  const previousTrackIdRef = useRef<string | null>(null);
+  const [historyAdded, setHistoryAdded] = useState(false);
+  
+  // URL base de la API (ajustar según entorno)
+  const API_BASE_URL = 'http://localhost:5000/api'; // Cambia esto según tu entorno de desarrollo o producción
+  
+  const addToHistory = async () => {
+    // Verificar que tengamos todos los datos necesarios
+    if (!track || !userId || !duration) {
+      console.log("Missing data for history:", { trackExists: !!track, userIdExists: !!userId, duration });
+      return;
+    }
+
+    // Evitar enviar la misma canción varias veces
+    if (previousTrackIdRef.current === track.id && historyAdded) {
+      console.log("Track already added to history:", track.name);
+      return;
+    }
+
+    try {
+      console.log("Adding to history:", track.name);
+      const response = await fetch(`http://localhost:5000/api/items/add-history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          songId: track.id,
+          songName: track.name,
+          artistId: `artist-${track.artist.replace(/\s+/g, '-').toLowerCase()}`, // Generar ID para artista
+          artistName: track.artist,
+          artistImageUrl: track.image,
+          albumName: track.album,
+          albumImageUrl: track.image,
+          length: Math.floor(duration / 1000), // Convertir ms a segundos
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        console.error("Failed to add to history:", result.message);
+      } else {
+        console.log("Added to history successfully:", result.message);
+        previousTrackIdRef.current = track.id;
+        setHistoryAdded(true);
+      }
+    } catch (error) {
+      console.error("Error sending history:", error);
+    }
+  };
+
+  // Efecto para registrar la canción en el historial cuando cambie
+  useEffect(() => {
+    if (track?.id && track.id !== previousTrackIdRef.current) {
+      setHistoryAdded(false);
+      // Esperar un breve momento para asegurarse de que la canción realmente está sonando
+      const timer = setTimeout(() => {
+        addToHistory();
+      }, 2000); // 2 segundos de delay para evitar registros erróneos
+      
+      return () => clearTimeout(timer);
+    }
+  }, [track?.id]);
+
+  // Efecto para actualizar el historial si la duración cambia significativamente
+  useEffect(() => {
+    if (track?.id && duration > 0 && !historyAdded) {
+      addToHistory();
+    }
+  }, [duration]);
+
   // Llama a onReload cuando el modal se abra
   useEffect(() => {
     if (visible) {
@@ -99,9 +176,6 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
   // State for rating and comments modal visibility
   const [showComsAndRatingModal, setShowComsAndRatingModal] = useState(false);
-  const { token } = useToken();
-  const track = info[0];  // info[id]
-  const userId = token?.user_id // user id
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState<number>(0);
   const [recentComments, setRecentComments] = useState<Comment[]>([]);
@@ -113,7 +187,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     const getRating = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://aural-454910.ew.r.appspot.com/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
+          const response = await fetch(`http://localhost:5000/api/items/punctuations-by-entity?entityId=${track.id}&entityType=song`);
           const result = await response.json();
   
           if (response.ok) {
@@ -128,12 +202,12 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           console.error("Error fetching rating:", error);
         }
       }
-    };
+    };  
 
     const getRecentComments = async () => {
       if (track && token) {
         try {
-          const response = await fetch(`http://aural-454910.ew.r.appspot.com/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
+          const response = await fetch(`http://localhost:5000/api/items/comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
           if (result) {
@@ -160,7 +234,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (rating > 0) {
       try {
         // API call in order to do a rating
-        const response = await fetch('http://aural-454910.ew.r.appspot.com/api/items/create-punctuation', {
+        const response = await fetch(`http://localhost:5000/api/items/create-punctuation`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -200,7 +274,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     if (comment.trim()) {
       try {
         // API call in order to do a comment
-        const response = await fetch('http://aural-454910.ew.r.appspot.com/api/items/create-comment', {
+        const response = await fetch(`http://localhost:5000/api/items/create-comment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

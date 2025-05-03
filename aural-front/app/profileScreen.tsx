@@ -137,7 +137,14 @@ const ProfileScreen = () => {
       const userId = token?.user_id;
       if (!userId) throw new Error("User ID is missing");
   
-      const response = await fetch(`http:localhost:5000/api/history/${userId}?limit=30`);
+      const response = await fetch(`http://localhost:5000/api/items/get-history/${token.user_id}?limit=10`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+
       const data = await response.json();
   
       if (response.ok) {
@@ -157,7 +164,7 @@ const ProfileScreen = () => {
       const userId = token?.user_id;
       if (!userId) throw new Error("User ID is missing");
   
-      const response = await fetch(`http:localhost:5000/api/stats/${userId}`);
+      const response = await fetch(`http://localhost:5000/api/items/get-stats/userId=${token.user_id}`);
       const data = await response.json();
   
       if (response.ok) {
@@ -672,6 +679,7 @@ const statsStyles = StyleSheet.create({
   stat: {
     color: "#cccccc",
     marginBottom: 2,
+    alignContent: "center"
   },
   entryRow: {
     flexDirection: "row",
