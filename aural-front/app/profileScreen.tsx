@@ -164,7 +164,12 @@ const ProfileScreen = () => {
       const userId = token?.user_id;
       if (!userId) throw new Error("User ID is missing");
   
-      const response = await fetch(`http://localhost:5000/api/items/get-stats/userId=${token.user_id}`);
+      const response = await fetch(`http://localhost:5000/api/items/get-stats/${token.user_id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
   
       if (response.ok) {
@@ -439,9 +444,6 @@ const ProfileScreen = () => {
                               <Text style={statsStyles.entrySubtitle}>
                                 {entry.albumName} • {entry.length && formatPlaytime(entry.length)}
                               </Text>
-                            )}
-                            {item.type === "Artists" && (
-                              <Text style={statsStyles.entrySubtitle}>Artist ID: {entry.artistId}</Text>
                             )}
                           </View>
                           <Text style={statsStyles.playtime}>{formatPlaytime(entry.playtime)}</Text>
