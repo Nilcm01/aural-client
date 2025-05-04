@@ -52,7 +52,7 @@ const AlbumInfo: React.FC = () => {
 
   const year = album.release_date.slice(0, 4);
   const renderSong = ({ item }: { item: Track }) => (
-    <TouchableOpacity style={s.songItem} onPress={() => playContent(token?.access_token, 'album', album.id, item.track_number)}>
+    <TouchableOpacity style={s.songItem} onPress={() => playContent(token?.access_token, 'album', album.id, item.track_number-1)}>
       <Text style={s.songText}>{item.name}</Text>
     </TouchableOpacity>
   );

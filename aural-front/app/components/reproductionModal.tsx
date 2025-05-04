@@ -12,6 +12,8 @@ import {
   Dimensions,
   TextInput,
   Button,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import QueueModal from './QueueModal';
 import { useToken } from "./../context/TokenContext";
@@ -94,6 +96,12 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
+  // === LYRICS FUNCTIONALITY ===
+  const [lyricsModalVisible, setLyricsModalVisible] = useState(false);
+  const [lyricsText, setLyricsText] = useState<string>('');
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [lyricsError, setLyricsError] = useState<string>('');
+  const lyricsTrack = info[0];
 
   //// ACTIONS
   // Share
@@ -171,6 +179,103 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     onClose();
   };
 
+  const showLyrics = async () => {
+    setLyricsModalVisible(true);
+    setLyricsLoading(true);
+    setLyricsError('');
+    setLyricsText('');
+
+    try {
+      // 1) Intentar desde tu API interna
+      const internalRes = await fetch(
+        `${API_URL}get-lyrics/${lyricsTrack.id}`
+      );
+      if (internalRes.status === 200) {
+        const { lyrics } = await internalRes.json();
+        setLyricsText(lyrics);
+        return; // ya tenemos la letra y no guardamos nada
+      }
+
+      // Aquí acumularemos la letra final antes de guardarla
+      let finalLyrics: string;
+
+      // 2) Probar con lyrics.ovh
+      const ovhRes = await fetch(
+        `https://api.lyrics.ovh/v1/${encodeURIComponent(lyricsTrack.artist)}/${encodeURIComponent(lyricsTrack.name)}`
+      );
+      if (ovhRes.ok) {
+        const ovhJson = await ovhRes.json();
+        finalLyrics = ovhJson.lyrics as string;
+
+      } else if (ovhRes.status === 404) {
+        // 3a) ChartLyrics: paso 1 → SearchLyric para LyricId y LyricChecksum
+        const searchRes = await fetch(
+          `http://api.chartlyrics.com/apiv1.asmx/SearchLyric` +
+          `?artist=${encodeURIComponent(lyricsTrack.artist)}` +
+          `&song=${encodeURIComponent(lyricsTrack.name)}`
+        );
+        if (!searchRes.ok) {
+          throw new Error(`ChartLyrics SearchLyric error: ${searchRes.status}`);
+        }
+        const searchXml = await searchRes.text();
+        const idMatch = searchXml.match(/<LyricId>(\d+)<\/LyricId>/);
+        const checksumMatch = searchXml.match(/<LyricChecksum>([^<]+)<\/LyricChecksum>/);
+        if (!idMatch || !checksumMatch) {
+          throw new Error('No se obtuvo LyricId/LyricChecksum de ChartLyrics');
+        }
+
+        const lyricId = idMatch[1];
+        const lyricChecksum = checksumMatch[1];
+
+        // 3b) ChartLyrics: paso 2 → GetLyric para letra completa
+        const getRes = await fetch(
+          `http://api.chartlyrics.com/apiv1.asmx/GetLyric` +
+          `?lyricId=${lyricId}&lyricChecksum=${lyricChecksum}`
+        );
+        if (!getRes.ok) {
+          throw new Error(`ChartLyrics GetLyric error: ${getRes.status}`);
+        }
+        const getXml = await getRes.text();
+        const lyricMatch = getXml.match(/<Lyric>([\s\S]*?)<\/Lyric>/);
+        if (lyricMatch && lyricMatch[1]) {
+          finalLyrics = lyricMatch[1];
+        } else {
+          throw new Error('No se encontró letra completa en ChartLyrics');
+        }
+
+      } else {
+        // otro error de OVH
+        throw new Error(`Error externo (lyrics.ovh): ${ovhRes.status}`);
+      }
+
+      // 4) Mostrar la letra recuperada
+      setLyricsText(finalLyrics);
+
+      // 5) Guardar en tu API interna usando la variable local finalLyrics
+      const saveRes = await fetch(
+        `${API_URL}save-lyrics`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            songId: lyricsTrack.id,
+            lyrics: finalLyrics,
+          }),
+        }
+      );
+      if (!saveRes.ok) {
+        const errorText = await saveRes.text();
+        throw new Error(`Error guardando letra: ${saveRes.status} – ${errorText}`);
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      setLyricsError(err.message || 'Error cargando letras');
+    } finally {
+      setLyricsLoading(false);
+    }
+  };
+
   //// COMMENTS AND RATING
   // Define comment interface
   interface Comment {
@@ -223,12 +328,12 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           const result = await response.json();
 
           if (result) {
-          setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
-          console.log("Recent Comments fetched successfully:", result.slice(-3));
-        } else {
-          console.error("Failed getting recent comments from api:", result);
-          setErrorMessage("Failed to load comments.");
-        }
+            setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
+            console.log("Recent Comments fetched successfully:", result.slice(-3));
+          } else {
+            console.error("Failed getting recent comments from api:", result);
+            setErrorMessage("Failed to load comments.");
+          }
 
         } catch (error) {
           console.error("Error fetching recent comments:", error);
@@ -311,16 +416,16 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       } catch (error) {
         console.error("Error submitting comment:", error);
         const message = "Your comment was flagged as inappropriate.";
-          console.warn("Hate speech detected:", message);
-        
-          setShowHateSpeechModal(true);
-          setComment(''); // Clear comment to force rewrite
-          setErrorMessage(message); // Optional: show reason
-        
-          setTimeout(() => {
-            setShowHateSpeechModal(false);
-            setErrorMessage(''); // Clear error after modal closes
-          }, 3000);
+        console.warn("Hate speech detected:", message);
+
+        setShowHateSpeechModal(true);
+        setComment(''); // Clear comment to force rewrite
+        setErrorMessage(message); // Optional: show reason
+
+        setTimeout(() => {
+          setShowHateSpeechModal(false);
+          setErrorMessage(''); // Clear error after modal closes
+        }, 3000);
       }
     } else {
       console.log("No comment entered");
@@ -357,7 +462,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                     <TouchableOpacity onPress={() => {/* Add to library */ }}>
                       <MaterialIcons name="add-circle-outline" size={40} color="white" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {/* Show lyrics */ }}>
+                    <TouchableOpacity onPress={showLyrics}>
                       <MaterialIcons name="text-fields" size={40} color="white" />
                     </TouchableOpacity>
                   </View>
@@ -437,6 +542,52 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         />
       )}
 
+      {/* Lyrics Modal */}
+      {lyricsModalVisible && (
+        <Modal
+          visible={lyricsModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setLyricsModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { padding: 20 }]}>
+              <View style={styles.topBar}>
+                <TouchableOpacity
+                  onPress={() => setLyricsModalVisible(false)}
+                >
+                  <MaterialIcons
+                    name="arrow-back-ios"
+                    size={35}
+                    color="white"
+                  />
+                </TouchableOpacity>
+                <Text style={styles.title}>
+                  Lyrics
+                </Text>
+                <View style={{ width: 30 }} />
+              </View>
+
+              {lyricsLoading ? (
+                <ActivityIndicator size="large" color="#f05858" />
+              ) : lyricsError ? (
+                <Text
+                  style={{ color: 'red', textAlign: 'center' }}
+                >
+                  {lyricsError}
+                </Text>
+              ) : (
+                <ScrollView style={{ marginTop: 10 }} showsVerticalScrollIndicator={false}>
+                  <Text style={styles.lyricsText}>
+                    {lyricsText}
+                  </Text>
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* Comments and Rating Modal */}
       {showComsAndRatingModal && (
         <Modal visible={showComsAndRatingModal} transparent animationType="slide" onRequestClose={() => setShowComsAndRatingModal(false)}>
@@ -481,6 +632,8 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 </TouchableOpacity>
               </View>
 
+
+
               {/* Display recent comments */}
               <View style={styles.recentCommentsSection}>
                 <Text style={styles.comsAndRatingTitle}>Comments</Text>
@@ -502,14 +655,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               </View>
 
               {showHateSpeechModal && (
-              <Modal transparent visible animationType="fade">
-                <View style={styles.hateSpeechOverlay}>
-                  <View style={styles.hateSpeechModal}>
-                    <Text style={styles.hateSpeechText}>Your comment was flagged as inappropriate. Please rewrite it!</Text>
+                <Modal transparent visible animationType="fade">
+                  <View style={styles.hateSpeechOverlay}>
+                    <View style={styles.hateSpeechModal}>
+                      <Text style={styles.hateSpeechText}>Your comment was flagged as inappropriate. Please rewrite it!</Text>
+                    </View>
                   </View>
-                </View>
-              </Modal>
-            )}
+                </Modal>
+              )}
 
             </View>
           </View>
@@ -547,7 +700,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <Text style={{ color: 'white', fontSize: 18 }}>Go to Album</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={async () => { goToArtist(); } } style={styles.otherActionsList}>
+              <TouchableOpacity onPress={async () => { goToArtist(); }} style={styles.otherActionsList}>
                 <Text style={{ color: 'white', fontSize: 18 }}>Go to Artist</Text>
               </TouchableOpacity>
 
@@ -807,6 +960,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     width: '100%',
     alignItems: 'center',
+  },
+  lyricsText: { 
+    color: 'white', 
+    lineHeight: 22,
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
   },
 });
 
