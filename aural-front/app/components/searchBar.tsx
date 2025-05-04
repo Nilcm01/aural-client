@@ -12,8 +12,9 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Modal,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useToken } from "../context/TokenContext";
 import QueueModal from "../components/QueueModal";
@@ -196,6 +197,21 @@ const SearchScreen: React.FC = () => {
     }
   };
 
+  // Filter search
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  {/* Double factor to avoid fast rendering (before clickig Search button) */}
+  const [activeFilters, setActiveFilters] = useState({
+    users: true,
+    albums: true,
+    tracks: true,
+    artists: true,
+  });
+  const [pendingFilters, setPendingFilters] = useState(activeFilters);
+
+  const toggleFilter = (key: keyof typeof activeFilters) => {
+    setActiveFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const renderUserItem = ({ item }: any) => (
     <View style={styles.resultItem}>
       <View style={styles.userInfo}>
@@ -283,8 +299,19 @@ const SearchScreen: React.FC = () => {
             onChangeText={setQuery}
             onSubmitEditing={handleSearch}
           />
+          {/*Search*/}
           <TouchableOpacity onPress={handleSearch}>
             <MaterialIcons name="search" size={32} color="white" />
+          </TouchableOpacity>
+          {/*Filter options*/}
+          <TouchableOpacity
+            onPress={() => {
+              setPendingFilters(activeFilters);
+              setFiltersVisible(true);
+            }}
+            style={{ marginLeft: 10 }}
+          >
+            <Ionicons name="options" size={28} color="white" />
           </TouchableOpacity>
         </View>
 
@@ -293,69 +320,77 @@ const SearchScreen: React.FC = () => {
         {loading && <ActivityIndicator size="large" color="#f05858" />}
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        <View style={{ marginTop: 40 }}>
-          <Text style={styles.sectionTitle}>Users</Text>
-          <FlatList
-            data={userResults}
-            keyExtractor={(i) => i.userId}
-            renderItem={renderUserItem}
-            scrollEnabled={false}
-          />
-        </View>
+        {activeFilters.users && (
+          <View style={{ marginTop: 40 }}>
+            <Text style={styles.sectionTitle}>Users</Text>
+            <FlatList
+              data={userResults}
+              keyExtractor={(i) => i.userId}
+              renderItem={renderUserItem}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
 
-        <View style={{ marginTop: 40 }}>
-          <Text style={styles.sectionTitle}>Albums</Text>
-          <FlatList
-            data={albums.slice(0, albumLimit)}
-            keyExtractor={(i) => i.id}
-            renderItem={renderAlbumItem}
-            scrollEnabled={false}
-          />
-          {albums.length > albumLimit && (
-            <TouchableOpacity
-              style={styles.showMoreButton}
-              onPress={() => setAlbumLimit(albums.length)}
-            >
-              <Text style={styles.showMoreText}>Show More Albums</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {activeFilters.albums && (
+          <View style={{ marginTop: 40 }}>
+            <Text style={styles.sectionTitle}>Albums</Text>
+            <FlatList
+              data={albums.slice(0, albumLimit)}
+              keyExtractor={(i) => i.id}
+              renderItem={renderAlbumItem}
+              scrollEnabled={false}
+            />
+            {albums.length > albumLimit && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => setAlbumLimit(albums.length)}
+              >
+                <Text style={styles.showMoreText}>Show More Albums</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-        <View style={{ marginTop: 40 }}>
-          <Text style={styles.sectionTitle}>Tracks</Text>
-          <FlatList
-            data={tracks.slice(0, trackLimit)}
-            keyExtractor={(i) => i.id}
-            renderItem={renderTrackItem}
-            scrollEnabled={false}
-          />
-          {tracks.length > trackLimit && (
-            <TouchableOpacity
-              style={styles.showMoreButton}
-              onPress={() => setTrackLimit(tracks.length)}
-            >
-              <Text style={styles.showMoreText}>Show More Tracks</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {activeFilters.tracks && (
+          <View style={{ marginTop: 40 }}>
+            <Text style={styles.sectionTitle}>Tracks</Text>
+            <FlatList
+              data={tracks.slice(0, trackLimit)}
+              keyExtractor={(i) => i.id}
+              renderItem={renderTrackItem}
+              scrollEnabled={false}
+            />
+            {tracks.length > trackLimit && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => setTrackLimit(tracks.length)}
+              >
+                <Text style={styles.showMoreText}>Show More Tracks</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-        <View style={{ marginTop: 40, marginBottom: 40 }}>
-          <Text style={styles.sectionTitle}>Artists</Text>
-          <FlatList
-            data={artists.slice(0, artistLimit)}
-            keyExtractor={(i) => i.id}
-            renderItem={renderArtistItem}
-            scrollEnabled={false}
-          />
-          {artists.length > artistLimit && (
-            <TouchableOpacity
-              style={styles.showMoreButton}
-              onPress={() => setArtistLimit(artists.length)}
-            >
-              <Text style={styles.showMoreText}>Show More Artists</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {activeFilters.artists && (
+          <View style={{ marginTop: 40, marginBottom: 40 }}>
+            <Text style={styles.sectionTitle}>Artists</Text>
+            <FlatList
+              data={artists.slice(0, artistLimit)}
+              keyExtractor={(i) => i.id}
+              renderItem={renderArtistItem}
+              scrollEnabled={false}
+            />
+            {artists.length > artistLimit && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => setArtistLimit(artists.length)}
+              >
+                <Text style={styles.showMoreText}>Show More Artists</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       <TouchableOpacity
@@ -373,6 +408,50 @@ const SearchScreen: React.FC = () => {
         onClearQueue={clearQueue}
         onSkip={() => Alert.alert("Skip")}
       />
+
+      {/* Filters modal */}
+      <Modal visible={filtersVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Close button */}
+            <TouchableOpacity onPress={() => setFiltersVisible(false)} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>Filter results</Text>
+            {["users", "albums", "tracks", "artists"].map((key) => (
+              <TouchableOpacity
+                key={key}
+                onPress={() =>
+                  setPendingFilters((prev) => ({
+                    ...prev,
+                    [key]: !prev[key as keyof typeof prev],
+                  }))
+                }
+                style={styles.filterOption}
+              >
+                <MaterialIcons
+                  name={pendingFilters[key as keyof typeof pendingFilters] ? "check-box" : "check-box-outline-blank"}
+                  size={24}
+                  color="white"
+                />
+                <Text style={styles.filterText}>{key}</Text>
+              </TouchableOpacity>
+            ))}
+            {/* Search button */}
+            <TouchableOpacity
+              onPress={() => {
+                setActiveFilters(pendingFilters);
+                setFiltersVisible(false);
+                handleSearch();
+              }}
+              style={styles.filterButton}
+            >
+              <Text style={styles.buttonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -396,7 +475,11 @@ const styles = StyleSheet.create({
   userImage: { width: 50, height: 50, borderRadius: 25, marginRight: 15 },
   username: { fontSize: 18, color: "white", fontWeight: "bold" },
   contentType: { fontSize: 14, color: "white", fontStyle: "italic", marginTop: 5 },
-  friendRequestButton: { backgroundColor: "#1DB954", padding: 10, borderRadius: 5, marginTop: 10 },
+  friendRequestButton: {
+    backgroundColor: "#1DB954",
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10 },
   buttonText: { color: "white", fontWeight: "bold" },
   sectionTitle: { fontSize: 22, color: "#f05858", fontWeight: "bold" },
   showMoreButton: {
@@ -415,6 +498,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#1DB954",
     padding: 12,
     borderRadius: 30,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: { backgroundColor: "#1e1e1e", padding: 20, borderRadius: 12, width: "80%" },
+  closeButton: { position: "absolute", top: 10, right: 10, padding: 5, zIndex: 1 },  
+  modalTitle: { color: "white", fontSize: 20, marginBottom: 15, fontWeight: "bold" },
+  filterOption: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
+  filterText: { color: "white", marginLeft: 10, textTransform: "capitalize" },
+  filterButton: {
+    marginTop: 20,
+    backgroundColor: "#1DB954",
+    padding: 10,
+    borderRadius: 6,
+    alignItems: "center",
   },
 });
 
