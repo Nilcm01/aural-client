@@ -10,8 +10,10 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useToken } from '../context/TokenContext';
+import { useNavigation } from 'expo-router';
+import { usePlayContent } from './WebPlayback';
 
 interface ArtistInfoProps {
   id: string;
@@ -23,12 +25,15 @@ interface ArtistDetail {
   images: { url: string }[];
   followers: { total: number };
   genres: string[];
+  id: string;
 }
 
 interface Album {
   id: string;
   name: string;
   images: { url: string }[];
+  release_date: string;
+  album_type: string;
 }
 
 interface Track {
@@ -38,8 +43,11 @@ interface Track {
 
 const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
   const { token } = useToken();
+  const navigation = useNavigation<any>();
+  const { playContent } = usePlayContent();
   const [artist, setArtist] = useState<ArtistDetail | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [singles, setSingles] = useState<Album[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -76,7 +84,14 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
           (a: Album, i: number, arr: Album[]) =>
             arr.findIndex(x => x.name === a.name) === i
         );
-        setAlbums(uniqueAlbums);
+        // release_date format: yyyy-mm
+        uniqueAlbums.sort((a: Album, b: Album) => {
+          const dateA = new Date(a.release_date);
+          const dateB = new Date(b.release_date);
+          return dateB.getTime() - dateA.getTime();
+        });
+        setAlbums(uniqueAlbums.filter((a: Album) => a.album_type === 'album'));
+        setSingles(uniqueAlbums.filter((a: Album) => a.album_type === 'single'));
         setTracks(topData.tracks);
       } catch (e) {
         console.error(e);
@@ -103,17 +118,22 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
   }
 
   const renderAlbum = ({ item }: { item: Album }) => (
-    <View style={styles.albumItem}>
+    <TouchableOpacity style={styles.albumItem} onPress={() =>
+      navigation.navigate("checkAlbumInfo/[id]", {
+        id: item.id,
+        name: item.name,
+      })
+    }>
       {item.images[0] && (
         <Image source={{ uri: item.images[0].url }} style={styles.albumImage} />
       )}
       <Text style={styles.albumName}>{item.name}</Text>
-    </View>
+    </TouchableOpacity>
   );
   const renderTrack = ({ item }: { item: Track }) => (
-    <View style={styles.trackItem}>
+    <TouchableOpacity style={styles.trackItem} onPress={() => playContent(token?.access_token, 'track', item.id, 0)}>
       <Text style={styles.trackText}>{item.name}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -136,6 +156,19 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
         )}
       </View>
 
+      {/* Top Tracks Box */}
+      <View style={styles.box}>
+
+        <View style={styles.titleWrapper}>
+          <Text style={styles.sectionTitle}>Top Tracks</Text>
+          <TouchableOpacity onPress={() => playContent(token?.access_token, 'artist', artist.id, 0)}>
+            <MaterialIcons name="play-circle-outline" size={42} color="#f05858" />
+          </TouchableOpacity>
+        </View>
+
+        <FlatList data={tracks} keyExtractor={i => i.id} renderItem={renderTrack} />
+      </View>
+
       {/* Albums Box */}
       <View style={styles.box}>
         <Text style={styles.sectionTitle}>Albums</Text>
@@ -149,17 +182,24 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
         />
       </View>
 
-      {/* Top Tracks Box */}
+      {/* Singles Box */}
       <View style={styles.box}>
-        <Text style={styles.sectionTitle}>Top Tracks</Text>
-        <FlatList data={tracks} keyExtractor={i => i.id} renderItem={renderTrack} />
+        <Text style={styles.sectionTitle}>Singles</Text>
+        <FlatList
+          data={singles}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={i => i.id}
+          renderItem={renderAlbum}
+          contentContainerStyle={styles.albumList}
+        />
       </View>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: '#121212', paddingHorizontal: 10, zIndex: 50 },
   loaderContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: 'red', textAlign: 'center', marginTop: 50 },
   backButton: { position: 'absolute', top: 10, left: 10, zIndex: 1 },
@@ -175,6 +215,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   section: { paddingHorizontal: 20 },
+  titleWrapper: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', color: '#f05858', marginBottom: 10 },
   box: {
     backgroundColor: '#1A1A1A',

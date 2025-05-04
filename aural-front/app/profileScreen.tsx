@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Image, Text, View, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useToken } from "./context/TokenContext";
@@ -11,7 +11,10 @@ const ProfileScreen = () => {
   const router = useRouter();
   const { token } = useToken();
   const { showReproBar } = useReproBarVisibility();
-  showReproBar(false);
+  useFocusEffect(() => {
+        showReproBar(false);
+        return () => {};
+      });
   const [username, setUsername] = useState(token?.user_id);
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -81,10 +84,8 @@ const ProfileScreen = () => {
   const goBack = () => {
     // Returns Home
     if (router.canGoBack()) {
-      showReproBar(true);
       router.back();
     } else {
-      showReproBar(true);
       router.push("/"); // Navigate to home screen if no back history
     }
   };

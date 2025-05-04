@@ -19,7 +19,8 @@ import { useToken } from "../context/TokenContext";
 import QueueModal from "../components/QueueModal";
 import { useQueue } from "../context/QueueContext";
 import HistoryContainer from "../components/historyContainer";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useReproBarVisibility } from "./WebPlayback";
 
 
 interface UserMatch {
@@ -44,6 +45,11 @@ const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { token } = useToken();
+  const { showReproBar } = useReproBarVisibility();
+  useFocusEffect(() => {
+    showReproBar(true);
+    return () => {};
+  });
   const { queue, addToQueue, updateQueue, removeFromQueue, clearQueue } = useQueue();
 
   const [query, setQuery] = useState("");

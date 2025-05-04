@@ -3,11 +3,16 @@ import { Text, View } from "react-native";
 import AppBar from "../components/appBar";  
 import HomeMenu from "../components/homeMenu";  
 import { useReproBarVisibility } from "../components/WebPlayback";
+import { useEffect } from "react";
+import { useFocusEffect } from "expo-router";
 
 
 export default function Index() {
   const { showReproBar } = useReproBarVisibility();
-  showReproBar(true);
+  useFocusEffect(() => {
+    showReproBar(true);
+    return () => {};
+  });
   return (
     // This is the main container for the page
     <View

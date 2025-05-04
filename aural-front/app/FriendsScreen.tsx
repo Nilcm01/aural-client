@@ -5,14 +5,17 @@ import AppBar from './components/appBar';
 import { useToken } from './context/TokenContext';
 import { useReproBarVisibility } from './components/WebPlayback';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const FriendsScreen: React.FC = () => {
   const { token } = useToken();
   const { showReproBar } = useReproBarVisibility();
-  showReproBar(false);
+  useFocusEffect(() => {
+        showReproBar(false);
+        return () => {};
+      });
   const [friendRequests, setFriendRequests] = useState<any[]>([]);
   const [friendsList, setFriendsList] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -75,10 +78,10 @@ const FriendsScreen: React.FC = () => {
       }}>
         <Pressable onPress={() => { 
           if (router.canGoBack()) {
-            showReproBar(true);
+            //showReproBar(true);
             router.back();
           } else {
-            showReproBar(true);
+            //showReproBar(true);
             router.push("/"); // Navigate to home screen if no back history
           } }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center" }}>
           <MaterialIcons name="arrow-back" size={30} color="white" style={{ left: 0 }} />

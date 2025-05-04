@@ -5,6 +5,7 @@ import LoginHeader from '../app/components/loginHeader';
 import { useEffect, useRef, useState  } from 'react';
 import axios from 'axios';
 import { useReproBarVisibility } from './components/WebPlayback';
+import { useFocusEffect } from 'expo-router';
 
 interface LoginPageProps {
   navigation?: any;
@@ -13,7 +14,10 @@ interface LoginPageProps {
 const LoginPage = ({ navigation }: LoginPageProps) => {
 
   const { showReproBar } = useReproBarVisibility();
-  showReproBar(false);
+  useFocusEffect(() => {
+        showReproBar(false);
+        return () => {};
+      });
 
   return (
     <SafeAreaView style={styles.container}>

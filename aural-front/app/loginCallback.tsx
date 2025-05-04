@@ -3,7 +3,7 @@ import { View, StyleSheet, Text } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useToken } from "./context/TokenContext";
 import { Buffer } from 'buffer';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useReproBarVisibility } from './components/WebPlayback';
 
 const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
@@ -11,7 +11,10 @@ const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 const LoginCallback = () => {
     const { token, setToken } = useToken();
     const { showReproBar } = useReproBarVisibility();
-    showReproBar(false);
+    useFocusEffect(() => {
+        showReproBar(false);
+        return () => { };
+    });
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {

@@ -16,7 +16,10 @@ export default function Chat() {
     const { token } = useToken();
     const { linkGet, linkConsume } = useSharing();
     const { showReproBar } = useReproBarVisibility();
-    showReproBar(false); // Hide the playback bar
+    useFocusEffect(() => {
+        showReproBar(false);
+        return () => { };
+    });
 
     const searchParams = useLocalSearchParams();
     const { chatId } = Array.isArray(searchParams) ? searchParams[0] : searchParams;

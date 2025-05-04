@@ -21,7 +21,10 @@ interface Chat {
 const ChatsScreen = () => {
     const { token } = useToken();
     const { showReproBar } = useReproBarVisibility();
-    showReproBar(true); // Hide the playback bar
+    useFocusEffect(() => {
+        showReproBar(true);
+        return () => { };
+    });
     const [chats, setChats] = useState<Chat[]>([]);
     const [loadingChats, setLoadingChats] = useState(true);
     const [loadingFriends, setLoadingFriends] = useState(true);

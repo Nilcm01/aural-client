@@ -10,6 +10,7 @@ import PublicationsModal from "../components/publicationsModal";
 import ReproductionModal from "../components/reproductionModal";
 import { FooterBarButton } from "../components/footerBar";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useReproBarVisibility } from "../components/WebPlayback";
 
 const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
@@ -21,6 +22,9 @@ const GET_USERS_URL = API_URL + 'users';
 export default function TabsLayout() {
   const { token, loadToken } = useToken();
   const [isLoading, setIsLoading] = useState(true);
+
+  //const { showReproBar } = useReproBarVisibility();
+  //showReproBar(true);
 
   // Estados para controlar los modales del feed
   const [feedModalVisible, setFeedModalVisible] = useState(false);

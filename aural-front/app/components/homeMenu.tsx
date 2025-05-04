@@ -1,14 +1,18 @@
 import { Text, View, Button, ScrollView } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
 import { useReproBarVisibility } from "./WebPlayback";
-import React from "react";
+import React, { useEffect } from "react";
 import Recents from "./recents";
 import NewReleases from "./newReleases";
 import CreatedForU from "./createdForU";
+import { useFocusEffect } from "expo-router";
 
 export default function HomeMenu() {
   const { showReproBar } = useReproBarVisibility();
-  showReproBar(true);
+  useFocusEffect(() => {
+      showReproBar(true);
+      return () => {};
+    });
   return (
     <ScrollView style={{ flex: 1, zIndex: 0}}>
         <View className="home-menu" style={{ left: 0, paddingBottom: 160, top: 40}}>

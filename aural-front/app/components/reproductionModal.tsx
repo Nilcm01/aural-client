@@ -16,14 +16,15 @@ import {
 import QueueModal from './QueueModal';
 import { useToken } from "./../context/TokenContext";
 import { useSharing } from './../context/SharingContext';
+import { useNavigation } from 'expo-router';
 
 export interface TrackInfo {
   id: string;
   name: string;
   artist: string;
-  artistId?: string;
+  artistId: string;
   album: string;
-  albumId?: string;
+  albumId: string;
   image: string;
   uri: string;
 }
@@ -73,6 +74,8 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       onReload();
     }
   }, [visible]);
+
+  const navigation = useNavigation<any>();
 
   //console.log("ReproductionModal rendered, visible:", visible);
   const [queueVisible, setQueueVisible] = useState(false);
@@ -130,6 +133,42 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     console.log("Sharing album link:", link);
     // Copy the link to the clipboard
     Clipboard.setString(link);
+  };
+
+  const goToAlbum = async () => {
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${info[0].id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token?.access_token}`
+      }
+    });
+    if (!response.ok) throw new Error(`Failed to fetch track data`);
+    const data = await response.json();
+
+    navigation.navigate("checkAlbumInfo/[id]", {
+      id: data.album.id,
+      name: data.album.name,
+    });
+    setShowOtherActionsModal(false);
+    onClose();
+  };
+
+  const goToArtist = async () => {
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${info[0].id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token?.access_token}`
+      }
+    });
+    if (!response.ok) throw new Error(`Failed to fetch track data`);
+    const data = await response.json();
+
+    navigation.navigate("checkArtistInfo/[id]", {
+      id: data.artists[0].id,
+      name: data.artists[0].name,
+    });
+    setShowOtherActionsModal(false);
+    onClose();
   };
 
   //// COMMENTS AND RATING
@@ -278,6 +317,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     }
   };
   ////
+
 
   return (
     <View>
@@ -482,11 +522,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <Text style={{ color: 'white', fontSize: 18 }}>Start a Session</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => {/* Go to Album */ }} style={styles.otherActionsList}>
+              <TouchableOpacity onPress={async () => { goToAlbum(); }} style={styles.otherActionsList}>
                 <Text style={{ color: 'white', fontSize: 18 }}>Go to Album</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => {/* Go to artist */ }} style={styles.otherActionsList}>
+              <TouchableOpacity onPress={async () => { goToArtist(); } } style={styles.otherActionsList}>
                 <Text style={{ color: 'white', fontSize: 18 }}>Go to Artist</Text>
               </TouchableOpacity>
 
