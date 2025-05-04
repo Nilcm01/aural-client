@@ -192,6 +192,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const [rating, setRating] = useState<number>(0);
   const [recentComments, setRecentComments] = useState<Comment[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showHateSpeechModal, setShowHateSpeechModal] = useState(false);
 
   // useEffect to load past ratings and comments
   useEffect(() => {
@@ -219,15 +220,15 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       if (track && token) {
         try {
           const response = await fetch(`${API_URL}comments-by-entity?contentId=${track.id}&entityType=song`);
+          const result = await response.json();
 
-          if (response.status === 200) {
-            const result = await response.json();
-            setRecentComments(result.reverse());
-            console.log("Recent Comments fetched successfully:", result);
-          } else {
-            console.error("Failed getting recent comments from api:", response.status, response.statusText);
-            setErrorMessage("Failed to load comments.");
-          }
+          if (result) {
+          setRecentComments(result.slice(-3).reverse());  // Only keep the 3 most recent comments
+          console.log("Recent Comments fetched successfully:", result.slice(-3));
+        } else {
+          console.error("Failed getting recent comments from api:", result);
+          setErrorMessage("Failed to load comments.");
+        }
 
         } catch (error) {
           console.error("Error fetching recent comments:", error);
@@ -309,14 +310,23 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         }
       } catch (error) {
         console.error("Error submitting comment:", error);
-        setErrorMessage("Not able to submit the comment.");
+        const message = "Your comment was flagged as inappropriate.";
+          console.warn("Hate speech detected:", message);
+        
+          setShowHateSpeechModal(true);
+          setComment(''); // Clear comment to force rewrite
+          setErrorMessage(message); // Optional: show reason
+        
+          setTimeout(() => {
+            setShowHateSpeechModal(false);
+            setErrorMessage(''); // Clear error after modal closes
+          }, 3000);
       }
     } else {
       console.log("No comment entered");
       setErrorMessage("Please write a comment before submitting.");
     }
   };
-  ////
 
 
   return (
@@ -487,9 +497,20 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                     keyExtractor={(item) => item._id}
                   />
                 ) : (
-                  <Text style={styles.emptyComments}>No comments available.</Text> // Display a message if no comments
+                  <Text style={styles.emptyComments}>No comments available</Text> // Display a message if no comments
                 )}
               </View>
+
+              {showHateSpeechModal && (
+              <Modal transparent visible animationType="fade">
+                <View style={styles.hateSpeechOverlay}>
+                  <View style={styles.hateSpeechModal}>
+                    <Text style={styles.hateSpeechText}>Your comment was flagged as inappropriate. Please rewrite it!</Text>
+                  </View>
+                </View>
+              </Modal>
+            )}
+
             </View>
           </View>
         </Modal>
@@ -551,6 +572,25 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  hateSpeechOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  hateSpeechModal: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    width: '80%',
+    alignItems: 'center',
+    elevation: 5,
+  },
+  hateSpeechText: {
+    color: '#f05858',
+    fontSize: 16,
+    textAlign: 'center',
+  },
   modalOverlay: {
     position: 'absolute',
     top: 0,
