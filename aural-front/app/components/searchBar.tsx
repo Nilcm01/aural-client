@@ -368,7 +368,7 @@ const SearchScreen: React.FC = () => {
         {loading && <ActivityIndicator size="large" color="#f05858" />}
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        {activeFilters.users && (
+        {activeFilters.users && userResults.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Users</Text>
             <FlatList
@@ -380,7 +380,7 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
-        {activeFilters.artists && (
+        {activeFilters.artists && artists.length > 0 && (
           <View style={{ marginTop: 40, marginBottom: 40 }}>
             <Text style={styles.sectionTitle}>Artists</Text>
             <FlatList
@@ -400,7 +400,7 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
-        {activeFilters.tracks && (
+        {activeFilters.tracks && tracks.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Tracks</Text>
             <FlatList
@@ -420,7 +420,7 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
-        {activeFilters.albums && (
+        {activeFilters.albums && albums.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Albums</Text>
             <FlatList
