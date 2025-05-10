@@ -20,6 +20,7 @@ import QueueModal from './QueueModal';
 import { useToken } from "./../context/TokenContext";
 import { useSharing } from './../context/SharingContext';
 import { useNavigation } from 'expo-router';
+import { useQueue } from '../context/QueueContext';
 
 export interface TrackInfo {
   id: string;
@@ -78,7 +79,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const [historyAdded, setHistoryAdded] = useState(false);
   const [showOtherActionsModal, setShowOtherActionsModal] = useState(false);
 
-  
+
   const addToHistory = async () => {
     // Verificar que tengamos todos los datos necesarios
     if (!track || !userId || !duration) {
@@ -94,7 +95,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
     try {
       console.log("Adding to history:", track.name);
-      const response = await fetch(`http://localhost:5000/api/items/add-history`, {
+      const response = await fetch(`${API_URL}add-history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +135,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       const timer = setTimeout(() => {
         addToHistory();
       }, 2000); // 2 segundos de delay para evitar registros erróneos
-      
+
       return () => clearTimeout(timer);
     }
   }, [track?.id]);
@@ -157,10 +158,38 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
   //console.log("ReproductionModal rendered, visible:", visible);
   const [queueVisible, setQueueVisible] = useState(false);
+  const { removeFromQueue, clearQueue, updateQueue } = useQueue();
 
   const openQueueModal = () => {
     setQueueVisible(true);
   };
+
+  // Update the queue when the modal is opened
+  useEffect(() => {
+    if (!token?.access_token) return;
+    const fetchQueue = async () => {
+      try {
+        const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
+          headers: { Authorization: `Bearer ${token.access_token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.queue) {
+          updateQueue(
+            data.queue.map((t: any) => ({
+              id: t.id,
+              image: t.album?.images?.[0]?.url ?? "",
+              name: t.name,
+              uri: t.uri,
+            }))
+          );
+        }
+      } catch { }
+    };
+    fetchQueue();
+    const iv = setInterval(fetchQueue, 10000);
+    return () => clearInterval(iv);
+  }, [queueVisible]);
 
   // Helper function to format milliseconds to mm:ss
   const formatTime = (milliseconds: number): string => {
@@ -341,7 +370,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       );
       if (!saveRes.ok) {
         const errorText = await saveRes.text();
-        throw new Error(`Error guardando letra: ${saveRes.status} – ${errorText}`);
+        throw new Error(`Error guardando letra: ${saveRes.status} - ${errorText}`);
       }
 
     } catch (err: any) {
@@ -370,12 +399,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const [recentComments, setRecentComments] = useState<Comment[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [showHateSpeechModal, setShowHateSpeechModal] = useState(false);
+  const [loadingCommentOrRating, setLoadingCommentOrRating] = useState(false);
 
   // useEffect to load past ratings and comments
   useEffect(() => {
     const getRating = async () => {
       if (track && token) {
         try {
+          setLoadingCommentOrRating(true);
           const response = await fetch(`${API_URL}punctuations-by-entity?entityId=${track.id}&entityType=song`);
 
           if (response.status === 200) {
@@ -390,12 +421,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         } catch (error) {
           console.error("Error fetching rating:", error);
         }
+        setLoadingCommentOrRating(false);
       }
-    };  
+    };
 
     const getRecentComments = async () => {
       if (track && token) {
         try {
+          setLoadingCommentOrRating(true);
           const response = await fetch(`${API_URL}comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
@@ -410,18 +443,20 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         } catch (error) {
           console.error("Error fetching recent comments:", error);
         }
+        setLoadingCommentOrRating(false);
       }
     };
 
     getRating();
     getRecentComments();
-  }, [token, track]);
+  }, [showComsAndRatingModal]);
 
   // Function to handle the submission of a star rating
   const handleRateSubmit = async () => {
     // Checking that there's a rating
     if (rating > 0) {
       try {
+        setLoadingCommentOrRating(true);
         // API call in order to do a rating
         const response = await fetch(API_URL + 'create-punctuation', {
           method: 'POST',
@@ -455,12 +490,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       console.log("No rating selected");
       setErrorMessage("Please select a rating before submitting.");
     }
+    setLoadingCommentOrRating(false);
   };
 
   // Function to handle the submission of a comment 
   const handleCommentSubmit = async () => {
     // Checking that there's a comment
     if (comment.trim()) {
+      setLoadingCommentOrRating(true);
       try {
         // API call in order to do a comment
         const response = await fetch(API_URL + 'create-comment', {
@@ -499,6 +536,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           setErrorMessage(''); // Clear error after modal closes
         }, 3000);
       }
+      setLoadingCommentOrRating(false);
     } else {
       console.log("No comment entered");
       setErrorMessage("Please write a comment before submitting.");
@@ -664,6 +702,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       {showComsAndRatingModal && (
         <Modal visible={showComsAndRatingModal} transparent animationType="slide" onRequestClose={() => setShowComsAndRatingModal(false)}>
           <View style={styles.modalOverlay}>
+
+            {/* Loading indicator */}
+            {loadingCommentOrRating && (
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1 }}>
+                <ActivityIndicator size="large" color="#f05858" />
+              </View>
+            )}
+
             <View style={styles.modalContent}>
               <Text style={styles.title}>Ratings and Comments</Text>
 
@@ -1033,8 +1079,8 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  lyricsText: { 
-    color: 'white', 
+  lyricsText: {
+    color: 'white',
     lineHeight: 22,
     fontSize: 18,
     textAlign: 'center',

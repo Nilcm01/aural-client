@@ -1,6 +1,7 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useToken } from './TokenContext'
 import { router, useNavigation } from 'expo-router';
+import { usePlayContent } from '../components/WebPlayback';
 
 const API_AURAL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 const API_SPOTIFY = `https://api.spotify.com/v1/`;
@@ -34,6 +35,7 @@ const SharingContext = createContext<SharingContextType | undefined>(undefined);
 export const SharingProvider = ({ children }: { children: ReactNode }) => {
     const { token } = useToken();
     const navigation = useNavigation<any>();
+    const { playContent } = usePlayContent();
 
     // Function to linkCreate a sharing link - ok
     const linkCreate = (contentType: ContentType, contentId: string): string => {
@@ -106,10 +108,7 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
                 // Navigate based on content type
                 switch (contentType) {
                     case 'song':
-                        /*navigation.navigate("checkSongInfo/[id]", {
-                            id: contentId,
-                            name: contentData?.name,
-                        });*/
+                        playContent(token?.access_token, 'track', contentId, 0);
                         break;
                     case 'album':
                         navigation.navigate("checkAlbumInfo/[id]", {
@@ -124,10 +123,9 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
                         });
                         break;
                     case 'playlist':
-                        /*navigation.navigate("checkPlaylistInfo/[id]", {
-                            id: contentId,
-                            name: contentData?.name,
-                        });*/
+                        navigation.navigate("checkPlaylistInfo/[id]", {
+                            id: contentId
+                        });
                         break;
                     default:
                         console.error('Unknown content type:', contentType);
