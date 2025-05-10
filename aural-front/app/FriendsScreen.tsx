@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, ScrollView, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView, ScrollView, Text, StyleSheet, ActivityIndicator, View, Pressable } from 'react-native';
 import FriendItem from './components/FriendItem';
 import AppBar from './components/appBar';
 import { useToken } from './context/TokenContext';
+import { useReproBarVisibility } from './components/WebPlayback';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const FriendsScreen: React.FC = () => {
   const { token } = useToken();
+  const { showReproBar } = useReproBarVisibility();
+  useFocusEffect(() => {
+        showReproBar(false);
+        return () => {};
+      });
   const [friendRequests, setFriendRequests] = useState<any[]>([]);
   const [friendsList, setFriendsList] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -17,13 +27,13 @@ const FriendsScreen: React.FC = () => {
   const fetchFriendsData = async () => {
     try {
       if (!userId) throw new Error("User not authenticated");
-      const response = await fetch(`http://localhost:5000/api/items/friends?userId=${userId}`);
+      const response = await fetch(`${API_URL}friends?userId=${userId}`);
       if (!response.ok) throw new Error('Error en la respuesta de la red');
       const data = await response.json();
 
       setFriendRequests(data.friend_requests || []);
       setFriendsList(
-        data.friends 
+        data.friends
           ? (Array.isArray(data.friends) ? data.friends : Object.keys(data.friends))
           : []
       );
@@ -62,7 +72,41 @@ const FriendsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppBar />
+      <View className="app-bar" style={{
+        height: 80, backgroundColor: "#262626",
+        alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
+      }}>
+        <Pressable onPress={() => { 
+          if (router.canGoBack()) {
+            //showReproBar(true);
+            router.back();
+          } else {
+            //showReproBar(true);
+            router.push("/"); // Navigate to home screen if no back history
+          } }} style={{ backgroundColor: "#262626", padding: 4, borderRadius: 4, margin: 2, alignItems: "center", justifyContent: "center" }}>
+          <MaterialIcons name="arrow-back" size={30} color="white" style={{ left: 0 }} />
+        </Pressable>
+        <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}>
+          Friends
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
+            {token ? `${token.user_id}` : "No Token"}
+          </Text>
+          <MaterialIcons
+            name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
+            size={30}
+            color="white"
+            onPress={() => {
+              if (token) {
+                router.push("/profileScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
+          />
+        </View>
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Friend Requests</Text>
         {friendRequests.map((friend, index) => (

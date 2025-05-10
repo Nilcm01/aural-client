@@ -1,14 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Image, Text, View, TextInput, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { MaterialIcons } from "@expo/vector-icons";
 import { useToken } from "./context/TokenContext";
+import { useReproBarVisibility } from './components/WebPlayback';
 import { FlatList, ActivityIndicator } from "react-native";
+
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const ProfileScreen = () => {
   const router = useRouter();
   const { token } = useToken();
+  const { showReproBar } = useReproBarVisibility();
+  useFocusEffect(() => {
+        showReproBar(false);
+        return () => {};
+      });
   const [username, setUsername] = useState(token?.user_id);
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
@@ -24,7 +32,7 @@ const ProfileScreen = () => {
   // Fetch user profile data when component mounts
   useEffect(() => {
     if (token && token.user_id) {
-      fetch(`http://localhost:5000/api/items/profile-info?userId=${token.user_id}`, {
+      fetch(`${API_URL}profile-info?userId=${token.user_id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -54,7 +62,7 @@ const ProfileScreen = () => {
 
     // Send updated profile data to backend
     if (token && token.user_id) {
-      fetch(`http://localhost:5000/api/items/modify-profile?userId=${token.user_id}`, {
+      fetch(`${API_URL}modify-profile?userId=${token.user_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -67,22 +75,26 @@ const ProfileScreen = () => {
           imageURL: profileImage,
         }),
       })
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Profile updated:", data);
-        setErrorMessage('');
-      })
-      .catch((error) => {
-        console.error("Error updating profile:", error);
-        setErrorMessage("There was an issue updating your profile.");
-      });
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Profile updated:", data);
+          setErrorMessage('');
+        })
+        .catch((error) => {
+          console.error("Error updating profile:", error);
+          setErrorMessage("There was an issue updating your profile.");
+        });
     }
   };
 
   // Handle navigation to the previous screen
   const goBack = () => {
     // Returns Home
-    router.push("/");
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push("/"); // Navigate to home screen if no back history
+    }
   };
 
   const openOptionsMenu = () => {
@@ -137,7 +149,7 @@ const ProfileScreen = () => {
       const userId = token?.user_id;
       if (!userId) throw new Error("User ID is missing");
   
-      const response = await fetch(`http://localhost:5000/api/items/get-history/${token.user_id}?limit=10`, {
+      const response = await fetch(`${API_URL}get-history/${token.user_id}?limit=10`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +176,7 @@ const ProfileScreen = () => {
       const userId = token?.user_id;
       if (!userId) throw new Error("User ID is missing");
   
-      const response = await fetch(`http://localhost:5000/api/items/get-stats/${token.user_id}`, {
+      const response = await fetch(`${API_URL}get-stats/${token.user_id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +245,7 @@ const ProfileScreen = () => {
 
       {/* Profile photo */}
       <TouchableOpacity style={styles.profileImageContainer}>
-        { profileImage ? (
+        {profileImage ? (
           <Image source={{ uri: profileImage }} style={styles.profileImage} />
         ) : (
           <Image

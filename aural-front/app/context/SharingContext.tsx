@@ -1,8 +1,8 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { router } from 'expo-router';
+import { useToken } from './TokenContext'
+import { router, useNavigation } from 'expo-router';
 
-const PORT = '5000';
-const API_AURAL = `http://localhost:${PORT}/api/items/`;
+const API_AURAL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 const API_SPOTIFY = `https://api.spotify.com/v1/`;
 
 // Define content types for sharing
@@ -32,6 +32,9 @@ const SharingContext = createContext<SharingContextType | undefined>(undefined);
 
 // Provider component
 export const SharingProvider = ({ children }: { children: ReactNode }) => {
+    const { token } = useToken();
+    const navigation = useNavigation<any>();
+
     // Function to linkCreate a sharing link - ok
     const linkCreate = (contentType: ContentType, contentId: string): string => {
         if (contentType === 'user') {
@@ -74,7 +77,7 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
     };
 
     // Function to navigate based on link
-    const linkConsume = (link: string): void => {
+    const linkConsume = async (link: string): Promise<void> => {
         try {
             const regex = /aural:\/share\/(content|user)\/([^\/]+)(?:\/([^\/]+))?/;
             const match = link.match(regex);
@@ -98,19 +101,33 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
                     return;
                 }
 
+                const contentData = await linkGet(link);
+
                 // Navigate based on content type
                 switch (contentType) {
                     case 'song':
-                        //TODO: router.push(`/components/library/songScreen?songId=${contentId}`);
+                        /*navigation.navigate("checkSongInfo/[id]", {
+                            id: contentId,
+                            name: contentData?.name,
+                        });*/
                         break;
                     case 'album':
-                        //TODO: router.push(`/components/library/albumScreen?albumId=${contentId}`);
+                        navigation.navigate("checkAlbumInfo/[id]", {
+                            id: contentId,
+                            name: contentData?.name,
+                        });
                         break;
                     case 'artist':
-                        //TODO: router.push(`/components/library/artistScreen?artistId=${contentId}`);
+                        navigation.navigate("checkArtistInfo/[id]", {
+                            id: contentId,
+                            name: contentData?.name,
+                        });
                         break;
                     case 'playlist':
-                        //TODO: router.push(`/components/library/playlistScreen?playlistId=${contentId}`);
+                        /*navigation.navigate("checkPlaylistInfo/[id]", {
+                            id: contentId,
+                            name: contentData?.name,
+                        });*/
                         break;
                     default:
                         console.error('Unknown content type:', contentType);
@@ -150,8 +167,18 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
     // Helper function to fetch content data based on type
     const fetchContentData = async (contentId: string, contentType: ContentType): Promise<ContentData | null> => {
         try {
-            const endpoint = `${API_SPOTIFY}${contentType}?id=${contentId}`;
-            const response = await fetch(endpoint);
+            var type = contentType.toString();
+            if (contentType === 'song') type = 'tracks';
+            else if (contentType === 'playlist') type = 'playlists';
+            else if (contentType === 'artist') type = 'artists';
+            else if (contentType === 'album') type = 'albums';
+            const response = await fetch(`${API_SPOTIFY}${type}/${contentId}`, {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token?.access_token}`
+                }
+            });
+
             if (!response.ok) throw new Error(`Failed to fetch ${contentType} data`);
 
             const data = await response.json();
@@ -163,24 +190,24 @@ export const SharingProvider = ({ children }: { children: ReactNode }) => {
                         id: contentId,
                         type: contentType,
                         name: data.name || data.title,
-                        album: data.album,
-                        artist: data.artist,
-                        imageUrl: data.imageUrl
+                        album: data.album.name,
+                        artist: data.artists[0].name,
+                        imageUrl: data.album.images[0]?.url
                     };
                 case 'album':
                     return {
                         id: contentId,
                         type: contentType,
                         name: data.name || data.title,
-                        artist: data.artist,
-                        imageUrl: data.imageUrl
+                        artist: data.artists[0].name,
+                        imageUrl: data.images[0]?.url
                     };
                 case 'artist':
                     return {
                         id: contentId,
                         type: contentType,
                         name: data.name,
-                        imageUrl: data.imageUrl
+                        imageUrl: data.images[0]?.url
                     };
                 case 'playlist':
                     return {

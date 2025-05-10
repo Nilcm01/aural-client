@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, Alert, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import ReproductionModal from './reproductionModal';
@@ -16,10 +16,13 @@ type TrackType = {
   name: string;
   uri?: string;
   album: {
+    id: string;
     name?: string;
     images: { url: string }[];
   };
-  artists: { name: string }[];
+  artists: {
+    id: string; name: string
+  }[];
 };
 
 type Props = {
@@ -29,14 +32,120 @@ type Props = {
 const emptyTrack: TrackType = {
   name: '',
   album: {
-    images: [{ url: '' }]
+    images: [{ url: '' }],
+    id: ''
   },
-  artists: [{ name: '' }]
+  artists: [{
+    name: '',
+    id: ''
+  }]
 };
 
+// Create a context for the reproduction bar visibility
+const ReproBarContext = createContext<{
+  reproBarVisible: boolean;
+  showReproBar: (visible: boolean) => void;
+}>({
+  reproBarVisible: true,
+  showReproBar: () => { },
+});
+
+// Create a provider component
+export const ReproBarProvider = ({ children }: { children: React.ReactNode }) => {
+  const [reproBarVisible, setReproBarVisible] = useState(true);
+
+  const showReproBar = (visible: boolean) => {
+    setReproBarVisible(visible);
+    if (visible) {
+      console.log("ReproBar is visible");
+    } else {
+      console.log("ReproBar is hidden");
+    }
+  };
+
+  return (
+    <ReproBarContext.Provider value={{ reproBarVisible, showReproBar }}>
+      {children}
+    </ReproBarContext.Provider>
+  );
+};
+
+// Create a custom hook to use the context
+export const useReproBarVisibility = () => {
+  return useContext(ReproBarContext);
+};
+
+type ContentType = 'album' | 'playlist' | 'track' | 'artist';
+
+var device_id: string | null = null;
+
+export const usePlayContent = () => {
+  const playContent = async (token: string | undefined, contentType: ContentType, contentId: string, offset: number) => {
+    if (!token) {
+      console.error("No token provided");
+      return;
+    }
+    console.log("uri: ", `spotify:${contentType}:${contentId}`);
+
+    try {
+      var response: Promise<Response>;
+
+      if (contentType === 'track') {
+        response = fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            uris: [`spotify:${contentType}:${contentId}`]
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+      } else if (contentType === 'playlist' || contentType === 'album') {
+        response = fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            context_uri: `spotify:${contentType}:${contentId}`,
+            offset: {
+              "position": offset
+            }
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+      } else {
+        response = fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            context_uri: `spotify:${contentType}:${contentId}`
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+      }
+
+      const errorData = await (await response).json();
+      console.error("Spotify API error:", errorData);
+      throw new Error(`Spotify API error: ${(await response).status} - ${JSON.stringify(errorData)}`);
+
+    } catch (error) {
+      console.error("Error playing content:", error);
+    }
+  }
+
+  return {
+    playContent
+  }
+}
+
 const WebPlayback: React.FC<Props> = ({ token }) => {
+  const { reproBarVisible } = useReproBarVisibility();
   // Usamos el hook del contexto para obtener la cola y sus métodos
-  const { queue, removeFromQueue, clearQueue } = useQueue();
+  const { queue, removeFromQueue, clearQueue, updateQueue } = useQueue();
 
   const [player, setPlayer] = useState<any>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -46,11 +155,46 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
   const [currentTrack, setTrack] = useState<TrackType>(emptyTrack);
   const [reproductionBarVisible, setReproductionBarVisible] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [info, setInfo] = useState<{ id: string; name: string; artist: string; album: string; image: string; uri: string }[]>([]);
+  const [info, setInfo] = useState<{ id: string; name: string; artist: string; artistId: string; album: string; albumId: string; image: string; uri: string }[]>([]);
   const [currentPosition, setCurrentPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isShuffle, setShuffle] = useState(false);
   const [isOnRepeat, setRepeat] = useState(0);
+
+  const fetchSpotifyQueue = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
+        method: "GET",
+        headers: {
+          "Authorization": "Bearer " + token,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        //console.log("Spotify queue:", data);
+        if (data.queue) {
+          const spotifyQueue = data.queue.map((track: any) => ({
+            id: track.id,
+            image: track.album && track.album.images && track.album.images[0]
+              ? track.album.images[0].url
+              : "https://example.com/default-image.jpg",
+            name: track.name,
+            uri: track.uri,
+          }));
+          updateQueue(spotifyQueue);
+        }
+      } else {
+        console.error("Error fetching Spotify queue, status:", res.status);
+      }
+    } catch (error) {
+      console.error("Error fetching Spotify queue:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSpotifyQueue();
+  }, []);
 
   const toggleShuffle = async () => {
     const newState = !isShuffle;
@@ -145,7 +289,9 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
       id: currentTrack.id || Date.now().toString(),
       name: currentTrack.name,
       artist: currentTrack.artists[0]?.name || 'Unknown Artist',
+      artistId: currentTrack.artists[0]?.id || '',
       album: currentTrack.album?.name || 'Unknown Album',
+      albumId: currentTrack.album?.id || '',
       image: currentTrack.album?.images[0]?.url || '',
       uri: currentTrack.uri || ''
     };
@@ -235,6 +381,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
 
     const transferPlaybackHere = async (deviceId: string, token: string) => {
       try {
+        device_id = deviceId;
         await fetch('https://api.spotify.com/v1/me/player', {
           method: 'PUT',
           headers: {
@@ -274,7 +421,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
   }
 
   return (
-    <View style={[!loading ? styles.container : styles.loading]}>
+    <View style={[(!loading && reproBarVisible) ? styles.container : styles.loading]}>
       <TouchableOpacity onPress={openReproductionModal} style={styles.layout}>
         <View style={styles.mainWrapper}>
           <View style={styles.innerBar}>
@@ -316,7 +463,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
 
       {reproductionBarVisible && (
         <ReproductionModal
-          token={token}
+          tokenSpotify={token}
           info={info}
           visible={reproductionBarVisible}
           onClose={() => setReproductionBarVisible(false)}
@@ -327,7 +474,9 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
                 id: currentTrack.id || Date.now().toString(),
                 name: currentTrack.name,
                 artist: currentTrack.artists[0]?.name || 'Unknown Artist',
-                album: currentTrack.album?.name || 'Unknown Album',
+                artistId: currentTrack.artists[0]?.id || '',
+                album: currentTrack.album.name || 'Unknown Album',
+                albumId: currentTrack.album.id || '',
                 image: currentTrack.album?.images[0]?.url || '',
                 uri: currentTrack.uri || ''
               };
@@ -362,7 +511,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 60,
     backgroundColor: '#262626',
-    zIndex: 10,
+    zIndex: 1,
     position: 'absolute',
     bottom: 79,
     borderRadius: 0,

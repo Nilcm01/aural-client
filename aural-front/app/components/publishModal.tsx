@@ -37,8 +37,9 @@ const PublishModal: React.FC<PublishModalProps> = ({
   const [preview, setPreview] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  const host = Platform.OS === 'android' ? '10.0.2.2:5000' : 'localhost:5000';
-  const API_BASE = `http://${host}/api/items`;
+  //const host = Platform.OS === 'android' ? '10.0.2.2:5000' : 'localhost:5000';
+  //const API_BASE = `http://${host}/api/items`;
+  const API_BASE = `https://aural-454910.ew.r.appspot.com/api/items`;
 
   useEffect(() => {
     if ((type === 'image' || type === 'video') && visible) {

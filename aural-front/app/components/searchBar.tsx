@@ -20,6 +20,9 @@ import { useToken } from "../context/TokenContext";
 import QueueModal from "../components/QueueModal";
 import { useQueue } from "../context/QueueContext";
 import HistoryContainer from "../components/historyContainer";
+import { router, useFocusEffect } from "expo-router";
+import { useReproBarVisibility } from "./WebPlayback";
+
 
 interface UserMatch {
   target: string;
@@ -38,9 +41,16 @@ interface ContentItem {
   uri?: string;
 }
 
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
+
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { token } = useToken();
+  const { showReproBar } = useReproBarVisibility();
+  useFocusEffect(() => {
+    showReproBar(true);
+    return () => { };
+  });
   const { queue, addToQueue, updateQueue, removeFromQueue, clearQueue } = useQueue();
 
   const [query, setQuery] = useState("");
@@ -77,7 +87,7 @@ const SearchScreen: React.FC = () => {
             }))
           );
         }
-      } catch {}
+      } catch { }
     };
     fetchQueue();
     const iv = setInterval(fetchQueue, 10000);
@@ -87,7 +97,9 @@ const SearchScreen: React.FC = () => {
   // Search users...
   const fetchAllUsers = async () => {
     try {
-      const r = await fetch("http://localhost:5000/api/items/users");
+
+      const r = await fetch(`${API_URL}users`);
+
       if (!r.ok) throw new Error();
       return await r.json();
     } catch {
@@ -103,7 +115,7 @@ const SearchScreen: React.FC = () => {
     setError("");
     try {
       const r = await fetch(
-        `http://localhost:5000/api/items/search-user?username=${encodeURIComponent(
+        `${API_URL}search-user?username=${encodeURIComponent(
           query
         )}`
       );
@@ -199,12 +211,12 @@ const SearchScreen: React.FC = () => {
 
   // Filter search
   const [filtersVisible, setFiltersVisible] = useState(false);
-  {/* Double factor to avoid fast rendering (before clickig Search button) */}
+  {/* Double factor to avoid fast rendering (before clickig Search button) */ }
   const [activeFilters, setActiveFilters] = useState({
     users: true,
-    albums: true,
-    tracks: true,
     artists: true,
+    tracks: true,
+    albums: true,
   });
   const [pendingFilters, setPendingFilters] = useState(activeFilters);
 
@@ -289,7 +301,44 @@ const SearchScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={{
+        height: 80, backgroundColor: "#262626",
+        alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
+      }}>
+        {/* To be later replaced dynamic title */}
+        <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}> Search </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
+            {token ? `${token.user_id}` : "No Token"}
+          </Text>
+          <MaterialIcons
+            name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
+            size={30}
+            color="white"
+            onPress={() => {
+              if (token) {
+                router.push("/profileScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
+          />
+          <Ionicons
+            name="people-circle-outline"
+            size={30}
+            color="white"
+            onPress={() => {
+              if (token) {
+                router.push("/FriendsScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
+          />
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
@@ -299,9 +348,8 @@ const SearchScreen: React.FC = () => {
             onChangeText={setQuery}
             onSubmitEditing={handleSearch}
           />
-          {/*Search*/}
-          <TouchableOpacity onPress={handleSearch}>
-            <MaterialIcons name="search" size={32} color="white" />
+          <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
+            <MaterialIcons name="search" size={24} color="white" />
           </TouchableOpacity>
           {/*Filter options*/}
           <TouchableOpacity
@@ -315,12 +363,12 @@ const SearchScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <HistoryContainer />
+        {/*<HistoryContainer />*/}
 
         {loading && <ActivityIndicator size="large" color="#f05858" />}
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-        {activeFilters.users && (
+        {activeFilters.users && userResults.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Users</Text>
             <FlatList
@@ -332,27 +380,27 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
-        {activeFilters.albums && (
-          <View style={{ marginTop: 40 }}>
-            <Text style={styles.sectionTitle}>Albums</Text>
+        {activeFilters.artists && artists.length > 0 && (
+          <View style={{ marginTop: 40, marginBottom: 40 }}>
+            <Text style={styles.sectionTitle}>Artists</Text>
             <FlatList
-              data={albums.slice(0, albumLimit)}
+              data={artists.slice(0, artistLimit)}
               keyExtractor={(i) => i.id}
-              renderItem={renderAlbumItem}
+              renderItem={renderArtistItem}
               scrollEnabled={false}
             />
-            {albums.length > albumLimit && (
+            {artists.length > artistLimit && (
               <TouchableOpacity
                 style={styles.showMoreButton}
-                onPress={() => setAlbumLimit(albums.length)}
+                onPress={() => setArtistLimit(artists.length)}
               >
-                <Text style={styles.showMoreText}>Show More Albums</Text>
+                <Text style={styles.showMoreText}>Show More Artists</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {activeFilters.tracks && (
+        {activeFilters.tracks && tracks.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Tracks</Text>
             <FlatList
@@ -372,21 +420,21 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
-        {activeFilters.artists && (
-          <View style={{ marginTop: 40, marginBottom: 40 }}>
-            <Text style={styles.sectionTitle}>Artists</Text>
+        {activeFilters.albums && albums.length > 0 && (
+          <View style={{ marginTop: 40 }}>
+            <Text style={styles.sectionTitle}>Albums</Text>
             <FlatList
-              data={artists.slice(0, artistLimit)}
+              data={albums.slice(0, albumLimit)}
               keyExtractor={(i) => i.id}
-              renderItem={renderArtistItem}
+              renderItem={renderAlbumItem}
               scrollEnabled={false}
             />
-            {artists.length > artistLimit && (
+            {albums.length > albumLimit && (
               <TouchableOpacity
                 style={styles.showMoreButton}
-                onPress={() => setArtistLimit(artists.length)}
+                onPress={() => setAlbumLimit(albums.length)}
               >
-                <Text style={styles.showMoreText}>Show More Artists</Text>
+                <Text style={styles.showMoreText}>Show More Albums</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -397,7 +445,7 @@ const SearchScreen: React.FC = () => {
         style={styles.openQueueButton}
         onPress={() => setQueueModalVisible(true)}
       >
-        <MaterialIcons name="queue-music" size={32} color="white" />
+        <MaterialIcons name="queue-music" size={30} color="white" />
       </TouchableOpacity>
       <QueueModal
         token={token?.access_token || null}
@@ -419,7 +467,7 @@ const SearchScreen: React.FC = () => {
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>Filter results</Text>
-            {["users", "albums", "tracks", "artists"].map((key) => (
+            {["users", "artists", "tracks", "albums"].map((key) => (
               <TouchableOpacity
                 key={key}
                 onPress={() =>
@@ -457,8 +505,17 @@ const SearchScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#121212" },
-  scrollContainer: { padding: 20, flexGrow: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: "#121212",
+    width: "100%",
+  },
+  scrollContainer: {
+    padding: 20,
+    flexGrow: 1,
+    marginTop: 80,
+    marginBottom: 140
+  },
   searchContainer: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   searchInput: {
     flex: 1,
@@ -470,6 +527,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     color: "black",
   },
+  searchButton: {
+    backgroundColor: "#F05858",
+    borderRadius: 40,
+    padding: 9,
+    marginLeft: 10,
+  },
   resultItem: { backgroundColor: "#262626", padding: 20, borderRadius: 8, marginVertical: 10 },
   userInfo: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   userImage: { width: 50, height: 50, borderRadius: 25, marginRight: 15 },
@@ -479,7 +542,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#1DB954",
     padding: 10,
     borderRadius: 5,
-    marginTop: 10 },
+    marginTop: 10
+  },
   buttonText: { color: "white", fontWeight: "bold" },
   sectionTitle: { fontSize: 22, color: "#f05858", fontWeight: "bold" },
   showMoreButton: {
@@ -492,12 +556,15 @@ const styles = StyleSheet.create({
   showMoreText: { color: "white", fontWeight: "bold" },
   errorText: { color: "red", textAlign: "center", marginVertical: 10 },
   openQueueButton: {
+    backgroundColor: "#F05858",
+    padding: 17,
+    borderRadius: 40,
+    margin: 10,
+    alignItems: "center",
+    justifyContent: "center",
     position: "absolute",
-    bottom: 20,
-    right: 20,
-    backgroundColor: "#1DB954",
-    padding: 12,
-    borderRadius: 30,
+    bottom: 140,
+    right: 20
   },
   modalOverlay: {
     flex: 1,
@@ -506,7 +573,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: { backgroundColor: "#1e1e1e", padding: 20, borderRadius: 12, width: "80%" },
-  closeButton: { position: "absolute", top: 10, right: 10, padding: 5, zIndex: 1 },  
+  closeButton: { position: "absolute", top: 10, right: 10, padding: 5, zIndex: 1 },
   modalTitle: { color: "white", fontSize: 20, marginBottom: 15, fontWeight: "bold" },
   filterOption: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
   filterText: { color: "white", marginLeft: 10, textTransform: "capitalize" },

@@ -1,6 +1,8 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert } from "react-native";
 
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
+
 const { width } = Dimensions.get("window");
 
 interface FriendObject {
@@ -22,7 +24,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, isRequest = false, curr
 
   const handleAccept = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/items/accept-friend-request", {
+      const response = await fetch(API_URL + "accept-friend-request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -45,7 +47,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, isRequest = false, curr
 
   const handleReject = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/items/reject-friend-request", {
+      const response = await fetch(API_URL + "reject-friend-request", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json"

@@ -4,14 +4,17 @@ import { TokenProvider, useToken } from "./context/TokenContext";
 import WebPlayback from "./components/WebPlayback";
 import { SharingProvider } from "./context/SharingContext";
 import { QueueProvider } from "./context/QueueContext";
+import { ReproBarProvider } from './components/WebPlayback';
 
 export default function RootLayout() {
   return (
-    <TokenProvider>
-      <QueueProvider>
-        <MainContent />
-      </QueueProvider>
-    </TokenProvider>
+    <ReproBarProvider>
+      <TokenProvider>
+        <QueueProvider>
+          <MainContent />
+        </QueueProvider>
+      </TokenProvider>
+    </ReproBarProvider>
   );
 }
 

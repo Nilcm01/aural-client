@@ -35,7 +35,7 @@ const PublicationsModal: React.FC<PublicationsModalProps> = ({
   onReload,
 }) => {
   const [usersMap, setUsersMap] = useState<Record<string,string>>({});
-  const API_BASE = 'http://localhost:5000/api/items';
+  const API_BASE = 'https://aural-454910.ew.r.appspot.com/api/items';
 
   useEffect(() => {
     if (!visible) return;

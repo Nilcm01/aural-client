@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { useRouter } from "expo-router";
 import { useToken } from "../context/TokenContext";
@@ -26,6 +26,18 @@ export default function AppBar() {
           onPress={() => {
             if (token) {
               router.push("/profileScreen");
+            } else {
+              router.push("/loginScreen"); // Navigate to login screen
+            }
+          }}
+        />
+        <Ionicons
+          name="people-circle-outline"
+          size={30}
+          color="white"
+          onPress={() => {
+            if (token) {
+              router.push("/FriendsScreen");
             } else {
               router.push("/loginScreen"); // Navigate to login screen
             }

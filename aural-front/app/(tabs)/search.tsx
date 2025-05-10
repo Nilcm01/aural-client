@@ -1,8 +1,15 @@
 import { View, Text, TextInput } from "react-native";
-import React from "react";
+import React, { useEffect } from "react";
 import SearchBar from "../components/searchBar";
+import { useReproBarVisibility } from "../components/WebPlayback";
+import { useFocusEffect } from "expo-router";
 
 export default function SearchScreen() {
+  const { showReproBar } = useReproBarVisibility();
+  useFocusEffect(() => {
+      showReproBar(true);
+      return () => {};
+    });
   return (
     <View
       style={{
