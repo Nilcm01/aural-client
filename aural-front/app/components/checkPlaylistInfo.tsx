@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Alert,
     StyleSheet,
+    Dimensions,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useToken } from '../context/TokenContext';
@@ -289,7 +290,13 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#121212', paddingHorizontal: 10, zIndex: 50 },
+    container: { 
+        flex: 1, 
+        backgroundColor: '#121212', 
+        paddingHorizontal: 10, 
+        zIndex: 50,
+        paddingBottom: 10,
+    },
     loaderContainer: {
         position: 'absolute',
         top: 0,
@@ -350,6 +357,8 @@ const styles = StyleSheet.create({
     songText: {
         color: '#fff',
         fontSize: 18,
+        flexWrap: 'wrap',
+        maxWidth: Dimensions.get('window').width * 0.55,
     },
     songArtist: {
         color: '#f05858',
