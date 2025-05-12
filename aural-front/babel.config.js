@@ -1,4 +1,11 @@
-module.exports = {
-  presets: ['module:metro-react-native-babel-preset'],
-  plugins: [['module:react-native-dotenv']],
+// babel.config.js
+module.exports = function(api) {
+  api.cache(true);
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: [
+      'expo-router/babel',    // <- imprescindible
+      // ...otros plugins que necesites
+    ],
+  };
 };
