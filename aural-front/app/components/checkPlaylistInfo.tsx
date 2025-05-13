@@ -15,6 +15,8 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useToken } from '../context/TokenContext';
 import { useNavigation } from 'expo-router';
 import { usePlayContent } from './WebPlayback';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { useSharing } from '../context/SharingContext';
 
 interface PlaylistInfoProps {
     id: string;
@@ -54,7 +56,7 @@ interface Track {
     };
 }
 
-
+type SavedType = true | false | 'own';
 
 const LIST_LENGTH = 50;
 
@@ -62,11 +64,13 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
     const { token } = useToken();
     const navigation = useNavigation<any>();
     const { playContent } = usePlayContent();
+    const { linkCreate } = useSharing();
 
     const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
     const [tracks, setTracks] = useState<Track[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
+    const [saved, setSaved] = useState<SavedType>(false);
 
     const addTracks = (tracks: Track[]) => {
         setTracks((prevTracks) => [...prevTracks, ...tracks]);
@@ -121,6 +125,7 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
                 };
 
                 setPlaylist(pl);
+                if (playlistData.owner.id === token?.user_id) setSaved('own');
                 //setError('');
             } catch (e) {
                 console.error(`Error fetching playlist data: ${e}`);
@@ -195,7 +200,82 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
                 setLoading(false);
             }
         })();
+
+        // Check if the playlist is saved
+        (async () => {
+            try {
+                // fetch
+                const savedRes = await fetch(`https://api.spotify.com/v1/playlists/${id}/followers/contains`, {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token.access_token}`,
+                        "Content-Type": "application/json",
+                    }
+                });
+
+                // check for error in return
+                if (!savedRes.ok) {
+                    setError('Failed to get saved status.');
+                    throw new Error('Spotify API error: ' + `${savedRes.status} ${savedRes.statusText}`);
+                }
+
+                const savedData = await savedRes.json();
+
+                setSaved(savedData[0]);
+
+                //setError('');
+            } catch (e) {
+                console.error(`Error fetching saved status: ${e}`);
+                setError('Failed to load playlist data.');
+            } finally {
+                setLoading(false);
+            }
+        })();
     }, [id, token]);
+
+    const handleSavePlaylist = async () => {
+        if (!id || !token?.access_token || saved === 'own') return;
+
+        if (!saved) /* Not saved -> save */ {
+            try {
+                const resSave = await fetch(`https://api.spotify.com/v1/playlists/${playlist!.id}/followers`, {
+                    method: "PUT",
+                    headers: {
+                        Authorization: `Bearer ${token.access_token}`,
+                        "Content-Type": "application/json",
+                    }
+                });
+
+                if (!resSave.ok) {
+                    throw new Error('Spotify API error: ' + `${resSave.status} ${resSave.statusText}`);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setSaved(true);
+                console.log('Playlist saved to library');
+            }
+        } else /* Saved -> remove */ {
+            try {
+                const resDelete = await fetch(`https://api.spotify.com/v1/playlists/${playlist!.id}/followers`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token.access_token}`,
+                        "Content-Type": "application/json",
+                    }
+                });
+
+                if (!resDelete.ok) {
+                    throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setSaved(false);
+                console.log('Playlist removed from library');
+            }
+        }
+    };
 
     const renderSong = ({ item }: { item: Track }) => (
         <TouchableOpacity
@@ -269,6 +349,20 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
                     <Text style={styles.owner}>
                         <Text style={{ color: '#bbbb', fontStyle: 'italic' }}>playlist by: </Text>{playlist?.owner.name}
                     </Text>
+                    <View style={{ flexDirection: 'row', marginTop: 10, justifyContent: 'flex-start', alignItems: 'center', gap: 40 }}>
+                        <TouchableOpacity onPress={() => { handleSavePlaylist(); }}>
+                            <MaterialIcons name={
+                                (saved === true) ? 'check-circle' :
+                                    (saved === 'own') ? 'account-circle' :
+                                        'add-circle-outline'
+                            } size={32} color="#f05858" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => {
+                            Clipboard.setString(linkCreate('playlist', playlist!.id));
+                        }}>
+                            <MaterialIcons name="share" size={24} color="#f05858" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
 
@@ -290,10 +384,10 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        backgroundColor: '#121212', 
-        paddingHorizontal: 10, 
+    container: {
+        flex: 1,
+        backgroundColor: '#121212',
+        paddingHorizontal: 10,
         zIndex: 50,
         paddingBottom: 10,
     },

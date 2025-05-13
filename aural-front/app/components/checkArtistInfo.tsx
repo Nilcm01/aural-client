@@ -9,11 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useToken } from '../context/TokenContext';
 import { useNavigation } from 'expo-router';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { usePlayContent } from './WebPlayback';
+import { useSharing } from '../context/SharingContext';
 
 interface ArtistInfoProps {
   id: string;
@@ -45,18 +48,20 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
   const { token } = useToken();
   const navigation = useNavigation<any>();
   const { playContent } = usePlayContent();
+  const { linkCreate } = useSharing();
   const [artist, setArtist] = useState<ArtistDetail | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [singles, setSingles] = useState<Album[]>([]);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!id || !token?.access_token) return;
     setLoading(true);
     (async () => {
       try {
-        const [artRes, albRes, topRes] = await Promise.all([
+        const [artRes, albRes, topRes, savRes] = await Promise.all([
           fetch(`https://api.spotify.com/v1/artists/${id}`, {
             headers: { Authorization: `Bearer ${token.access_token}` },
           }),
@@ -67,17 +72,20 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
           fetch(`https://api.spotify.com/v1/artists/${id}/top-tracks?market=ES`, {
             headers: { Authorization: `Bearer ${token.access_token}` },
           }),
+          fetch(`https://api.spotify.com/v1/me/following/contains?type=artist&ids=${id}`, { headers: { Authorization: `Bearer ${token.access_token}` } })
         ]);
 
-        if (!artRes.ok || !albRes.ok || !topRes.ok) {
-          throw new Error('Spotify API error');
+        if (!artRes.ok || !albRes.ok || !topRes.ok || !savRes.ok) {
+          throw new Error(`Spotify API error`);
         }
 
         const artData = await artRes.json();
         const albData = await albRes.json();
         const topData = await topRes.json();
+        const savData = await savRes.json();
 
         setArtist(artData);
+        setSaved(savData[0]);
 
         // Filtramos álbumes duplicados por nombre
         const uniqueAlbums = albData.items.filter(
@@ -101,6 +109,52 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
       }
     })();
   }, [id, token]);
+
+  const handleSaveAartist = async () => {
+    if (!id || !token?.access_token) return;
+
+    if (!saved) /* Not saved -> save */ {
+      try {
+        const resSave = await fetch(`https://api.spotify.com/v1/me/following?type=artist`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [id] }),
+        });
+
+        if (!resSave.ok) {
+          throw new Error('Spotify API error: ' + `${resSave.status} ${resSave.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(true);
+        console.log('Artist saved to library');
+      }
+    } else /* Saved -> remove */ {
+      try {
+        const resDelete = await fetch(`https://api.spotify.com/v1/me/following?type=artist`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [id] }),
+        });
+
+        if (!resDelete.ok) {
+          throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(false);
+        console.log('Artist removed from library');
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -154,6 +208,19 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
         {artist.genres.length > 0 && (
           <Text style={styles.genres}>{artist.genres.join(', ')}</Text>
         )}
+      </View>
+
+      <View style={{ flexDirection: 'row', marginTop: 10, justifyContent: 'center', alignItems: 'center', gap: 80 }}>
+        <TouchableOpacity onPress={() => { handleSaveAartist(); }}>
+          <MaterialIcons name={
+            saved ? 'check-circle' : 'add-circle-outline'
+          } size={32} color="#f05858" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => {
+          Clipboard.setString(linkCreate('artist', artist.id));
+        }}>
+          <MaterialIcons name="share" size={24} color="#f05858" />
+        </TouchableOpacity>
       </View>
 
       {/* Top Tracks Box */}
