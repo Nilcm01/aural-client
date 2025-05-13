@@ -331,7 +331,7 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
     }
 
     return (
-        <ScrollView style={styles.container}>
+        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <TouchableOpacity style={styles.backButton} onPress={onBack}>
                 <Ionicons name="arrow-back" size={30} color="#fff" />
             </TouchableOpacity>

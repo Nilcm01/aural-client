@@ -124,7 +124,7 @@ const AlbumInfo: React.FC = () => {
   );
 
   return (
-    <ScrollView style={s.container}>
+    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       <TouchableOpacity style={s.back} onPress={() => {
         if (router.canGoBack()) {
           router.back();

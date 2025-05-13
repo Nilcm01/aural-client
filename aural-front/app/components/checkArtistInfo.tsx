@@ -191,7 +191,7 @@ const ArtistInfo: React.FC<ArtistInfoProps> = ({ id, name, onBack }) => {
   );
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <TouchableOpacity style={styles.backButton} onPress={onBack}>
         <Ionicons name="arrow-back" size={30} color="#fff" />
       </TouchableOpacity>

@@ -361,6 +361,7 @@ const ProfileScreen = () => {
                 renderItem={renderHistoryItem}
                 keyExtractor={(item, index) => `${item.songId}-${index}`}
                 contentContainerStyle={historyStyles.listContent}
+                showsVerticalScrollIndicator={false}
               />
             )}
           </View>
@@ -464,6 +465,7 @@ const ProfileScreen = () => {
                     )}
                   </View>
                 )}
+                showsVerticalScrollIndicator={false}
               />
             ) : (
               <Text style={statsStyles.stat}>No statistics available.</Text>
