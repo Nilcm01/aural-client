@@ -1,9 +1,9 @@
-// app/components/RadioRoomModal.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
@@ -19,22 +19,191 @@ interface Props {
   onClose: () => void;
 }
 
+interface SongDisplay {
+  id: string;
+  name: string;
+  image?: string;
+}
+
 export default function RadioRoomModal({ visible, radio, onClose }: Props) {
   const { token } = useToken();
   const userId = token!.user_id;
-
   const {
     playRadio,
     pauseRadio,
     seekRadio,
     changeSong,
-    deleteRadio
+    deleteRadio,
+    leaveRadio,
+    socket
   } = useRadio();
 
-  const [seekTime, setSeekTime] = React.useState("0");
-  const [newTrack, setNewTrack] = React.useState("");
+  const [seekTime, setSeekTime] = useState("0");
+  const [newTrack, setNewTrack] = useState("");
 
-  const onDelete = () => {
+  const [displaySong, setDisplaySong] = useState<SongDisplay | null>(
+    radio.currentSong
+      ? { id: radio.currentSong.id, name: radio.currentSong.name }
+      : null
+  );
+  const [displayTime, setDisplayTime] = useState(radio.currentTime);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Spotify Web API helpers
+  const playTrack = async (uri: string, position_ms = 0) => {
+    if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
+    try {
+      await fetch("https://api.spotify.com/v1/me/player/play", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uris: [uri], position_ms }),
+      });
+    } catch {
+      Alert.alert("Error", "Play failed");
+    }
+  };
+
+  const pauseTrack = async () => {
+    if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
+    try {
+      await fetch("https://api.spotify.com/v1/me/player/pause", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      });
+    } catch {
+      Alert.alert("Error", "Pause failed");
+    }
+  };
+
+  const seekTrack = async (ms: number) => {
+    if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
+    try {
+      await fetch(
+        `https://api.spotify.com/v1/me/player/seek?position_ms=${ms}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token.access_token}` },
+        }
+      );
+    } catch {
+      Alert.alert("Error", "Seek failed");
+    }
+  };
+
+  const resumeTrack = async () => {
+    if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
+    try {
+      await fetch("https://api.spotify.com/v1/me/player/play", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      });
+    } catch {
+      Alert.alert("Error", "Resume failed");
+    }
+  };
+
+  // Incrementa el displayTime cada segundo cuando está sonando
+  useEffect(() => {
+    if (!isPlaying) return;
+    const timer = setInterval(() => {
+      setDisplayTime((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isPlaying]);
+
+  // Al abrir el modal, inicializa con /me/player
+  useEffect(() => {
+    if (!visible || !token?.access_token) return;
+    (async () => {
+      try {
+        const res = await fetch(
+          "https://api.spotify.com/v1/me/player?market=ES",
+          {
+            headers: { Authorization: `Bearer ${token.access_token}` }
+          }
+        );
+        if (res.status === 204) {
+          setDisplaySong(null);
+          setDisplayTime(0);
+          setIsPlaying(false);
+          return;
+        }
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const item = data.item;
+        if (item) {
+          setDisplaySong({
+            id: item.id,
+            name: item.name,
+            image: item.album.images[0]?.url
+          });
+          const secs = (data.progress_ms ?? 0) / 1000;
+          setDisplayTime(secs);
+          setIsPlaying(data.is_playing);
+          playTrack(`spotify:track:${item.id}`, data.progress_ms);
+        }
+      } catch (e) {
+        console.warn("[Spotify] GET /me/player failed", e);
+      }
+    })();
+  }, [visible, token?.access_token]);
+
+  // Función para obtener la imagen de un track
+  const fetchTrackImage = async (trackId: string) => {
+    if (!token?.access_token) return;
+    try {
+      const res = await fetch(
+        `https://api.spotify.com/v1/tracks/${trackId}`,
+        { headers: { Authorization: `Bearer ${token.access_token}` } }
+      );
+      if (!res.ok) throw new Error();
+      const info = await res.json();
+      setDisplaySong((s) =>
+        s ? { id: info.id, name: info.name, image: info.album.images[0]?.url } : null
+      );
+    } catch {
+      console.warn("[Spotify] GET /tracks/{id} failed");
+    }
+  };
+
+  // Handlers de reproducción y WS emits
+  const handlePlay = () => {
+    if (displaySong) {
+      playTrack(`spotify:track:${displaySong.id}`, displayTime * 1000);
+    }
+    setIsPlaying(true);
+    playRadio(radio.radioId, userId);
+  };
+
+  const handlePause = () => {
+    pauseTrack();
+    setIsPlaying(false);
+    pauseRadio(radio.radioId, userId);
+  };
+
+  const handleResume = () => {
+    resumeTrack();
+    setIsPlaying(true);
+    socket.emit("resumeSong", { radioId: radio.radioId, userId });
+  };
+
+  const handleSeek = (secs: number) => {
+    seekTrack(secs * 1000);
+    setDisplayTime(secs);
+    seekRadio(radio.radioId, userId, secs);
+  };
+
+  const onChangeSong = () => {
+    if (!newTrack.trim()) return;
+    const fakeId = newTrack.trim().toLowerCase().replace(/\s+/g, "-");
+    changeSong(radio.radioId, userId, { id: fakeId, name: newTrack.trim() });
+    setNewTrack("");
+  };
+
+  const confirmDelete = () => {
     Alert.alert(
       "Borrar radio",
       `¿Seguro que quieres borrar "${radio.name}"?`,
@@ -43,61 +212,116 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
         {
           text: "Borrar",
           style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteRadio(radio.radioId, userId);
-              onClose();
-            } catch {
-              Alert.alert("Error", "No se pudo borrar la radio");
-            }
+          onPress: () => {
+            deleteRadio(radio.radioId, userId);
+            onClose();
           }
         }
       ]
     );
   };
 
-  const onChangeSong = () => {
-    if (!newTrack.trim()) return;
-    changeSong(radio.radioId, userId, { name: newTrack.trim() });
-    setNewTrack("");
+  const handleClose = () => {
+    leaveRadio(radio.radioId, userId);
+    onClose();
   };
 
+  // WS listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const onRadioJoined = (data: {
+      currentSong: SongDisplay | null;
+      currentTime: number;
+    }) => {
+      setDisplaySong(data.currentSong);
+      if (data.currentSong) fetchTrackImage(data.currentSong.id);
+      setDisplayTime(data.currentTime);
+      setIsPlaying(true);
+      if (data.currentSong) {
+        playTrack(`spotify:track:${data.currentSong.id}`, data.currentTime * 1000);
+      }
+    };
+
+    const onSongUpdated = ({ currentSong, currentTime }: any) => {
+      setDisplaySong(currentSong);
+      fetchTrackImage(currentSong.id);
+      setDisplayTime(currentTime);
+      setIsPlaying(true);
+      playTrack(`spotify:track:${currentSong.id}`, currentTime * 1000);
+    };
+
+    const onTimeSynced = ({ currentTime }: any) => {
+      setDisplayTime(currentTime);
+    };
+
+    socket.on("radioJoined", onRadioJoined);
+    socket.on("songUpdated", onSongUpdated);
+    socket.on("timeSynced", onTimeSynced);
+    socket.on("radioPlay", () => setIsPlaying(true));
+    socket.on("songPaused", () => setIsPlaying(false));
+    socket.on("songResumed", () => setIsPlaying(true));
+    socket.on("radioDeleted", ({ radioId }: any) => {
+      if (radioId === radio.radioId) onClose();
+    });
+
+    return () => {
+      socket.off("radioJoined", onRadioJoined);
+      socket.off("songUpdated", onSongUpdated);
+      socket.off("timeSynced", onTimeSynced);
+      socket.off("radioPlay", () => setIsPlaying(true));
+      socket.off("songPaused", () => setIsPlaying(false));
+      socket.off("songResumed", () => setIsPlaying(true));
+      socket.off("radioDeleted", ({ radioId }: any) => {
+        if (radioId === radio.radioId) onClose();
+      });
+    };
+  }, [socket]);
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.box}>
-          {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose}>
               <Text style={styles.close}>✕</Text>
             </TouchableOpacity>
             <Text style={styles.title}>{radio.name}</Text>
             {radio.creator === userId && (
-              <TouchableOpacity onPress={onDelete}>
+              <TouchableOpacity onPress={confirmDelete}>
                 <Text style={styles.delete}>🗑️</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Estado actual */}
+          {displaySong?.image && (
+            <Image
+              source={{ uri: displaySong.image }}
+              style={styles.cover}
+            />
+          )}
+
           <Text style={styles.info}>
-            🎵 Ahora: {radio.currentSong?.name ?? "—"}
+            🎵 Ahora: {displaySong?.name ?? "—"}
           </Text>
           <Text style={styles.info}>
-            ⏱ Tiempo: {Math.floor(radio.currentTime)}s
+            ⏱ Tiempo: {Math.floor(displayTime)}s
           </Text>
 
-          {/* Controles básicos */}
           <View style={styles.controls}>
-            <TouchableOpacity onPress={() => playRadio(radio.radioId, userId)}>
-              <Text style={styles.btn}>▶️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => pauseRadio(radio.radioId, userId)}>
+            <TouchableOpacity onPress={handlePause}>
               <Text style={styles.btn}>⏸️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleResume}>
+              <Text style={styles.btn}>▶️</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Seek */}
           <View style={styles.row}>
             <TextInput
               style={styles.input}
@@ -109,13 +333,12 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
             />
             <TouchableOpacity
               style={styles.smallBtn}
-              onPress={() => seekRadio(radio.radioId, userId, Number(seekTime))}
+              onPress={() => handleSeek(Number(seekTime))}
             >
               <Text style={styles.smallBtnText}>Mover</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Cambiar canción / Añadir canción */}
           <View style={styles.row}>
             <TextInput
               style={styles.input}
@@ -124,7 +347,10 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
               placeholder="nombre de la canción"
               placeholderTextColor="#666"
             />
-            <TouchableOpacity style={styles.smallBtn} onPress={onChangeSong}>
+            <TouchableOpacity
+              style={styles.smallBtn}
+              onPress={onChangeSong}
+            >
               <Text style={styles.smallBtnText}>Enviar</Text>
             </TouchableOpacity>
           </View>
@@ -145,7 +371,7 @@ const styles = StyleSheet.create({
   box: {
     width: width * 0.9,
     backgroundColor: "#262626",
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16
   },
   header: {
@@ -155,12 +381,26 @@ const styles = StyleSheet.create({
   },
   close: { color: "white", fontSize: 20 },
   delete: { color: "#F05858", fontSize: 20 },
-  title: { color: "#F05858", fontSize: 20, fontWeight: "bold" },
-  info: { color: "white", fontSize: 16, marginTop: 12 },
+  title: { color: "#F05858", fontSize: 22, fontWeight: "bold" },
+  cover: {
+    width: width * 0.8,
+    height: width * 0.8,
+    borderRadius: 8,
+    alignSelf: "center",
+    marginVertical: 12,
+    borderWidth: 2,
+    borderColor: "#F05858"
+  },
+  info: {
+    color: "white",
+    fontSize: 16,
+    marginBottom: 8,
+    textAlign: "center"
+  },
   controls: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginTop: 24
+    marginTop: 12
   },
   btn: { color: "white", fontSize: 32 },
   row: {

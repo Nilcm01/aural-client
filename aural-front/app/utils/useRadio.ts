@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { Platform } from "react-native";
 import { getSocket } from "./socket";
 import { Socket } from "socket.io-client";
 
@@ -8,105 +6,141 @@ export interface RadioInfo {
   radioId: string;
   name: string;
   creator: string;
-  participants: { userId: string; admin: boolean }[];
-  currentSong: any;
+  playlistId?: string;
+  participants: { userId: string; admin?: boolean }[];
+  currentSong: { id: string; name: string } | null;
   currentTime: number;
 }
 
-const HOST =
-  Platform.OS === "android"
-    ? "http://10.0.2.2:5000"
-    : "http://localhost:5000";
-
-const REST = `${HOST}/api/items`;
+interface CreatePayload {
+  name: string;
+  creatorId: string;
+  playlistId: string;
+}
 
 export function useRadio() {
   const [radios, setRadios] = useState<RadioInfo[]>([]);
   const [current, setCurrent] = useState<RadioInfo | null>(null);
-  const socket = getSocket();
+  const socket: Socket = getSocket();
 
-  /** 1) Carga la lista de radios “en directo” */
-  function fetchLiveRadios() {
-    socket.emit("getLiveRadios");
-  }
-
-  /** 2) Crea una radio nueva (name + creatorId) */
-  async function createRadio(name: string, creatorId: string): Promise<string> {
-    const { data } = await axios.post<{ radioId: string }>(
-      `${REST}/create-radio`,
-      { name, creatorId }
-    );
-    fetchLiveRadios();
-    return data.radioId;
-  }
-
-  /** 3) Borra una radio (solo su creador) */
-  async function deleteRadio(radioId: string, userId: string) {
-    await axios.delete(`${REST}/delete-radio`, {
-      data: { radioId, userId },
-    });
-    fetchLiveRadios();
-
-    if (current?.radioId === radioId) {
-      socket.emit("leaveRadio", radioId, userId);
-      setCurrent(null);
-    }
-  }
-
-  /** 4) Únete a una radio via WS */
-  function joinRadio(radioId: string, userId: string) {
-    socket.emit("joinRadio", radioId, userId);
-    const found = radios.find((r) => r.radioId === radioId) ?? null;
-    setCurrent(found);
-  }
-
-  /** 5) Sal de una radio via WS */
-  function leaveRadio(radioId: string, userId: string) {
-    socket.emit("leaveRadio", radioId, userId);
-    setCurrent(null);
-  }
-
-  /** 6) Controles de reproducción (solo el creador) */
-  function playRadio(radioId: string, userId: string) {
-    socket.emit("radioPlay", { radioId, userId });
-  }
-  function pauseRadio(radioId: string, userId: string) {
-    socket.emit("radioPause", { radioId, userId });
-  }
-  function seekRadio(radioId: string, userId: string, time: number) {
-    socket.emit("radioSeek", { radioId, userId, time });
-  }
-  function changeSong(radioId: string, userId: string, song: any) {
-    socket.emit("radioChangeSong", { radioId, userId, song });
-  }
-
-  /** 7) Listeners WebSocket (solo una vez) */
+  // ——— WS LISTENERS —————————————————————————————————————————
   useEffect(() => {
-    socket.on("liveRadios", (radios) => {
-      console.log("Live radios recibidas:", radios);
-      setRadios(radios);
-      console.log("Radios after setter: ", radios);
+    socket.on("liveRadios", (list: RadioInfo[]) => {
+      setRadios(list);
     });
 
-    socket.on("radioState", (state: { currentSong: any; currentTime: number }) => {
-      setCurrent((prev) => (prev ? { ...prev, ...state } : prev));
+    socket.on("radioListUpdated", () => {
+      socket.emit("getLiveRadios");
     });
 
-    socket.on("radioJoined", (data) => {
-      setCurrent((prev) => (prev ? { ...prev, ...data } : prev));
+    socket.on("radioCreated", (newRadio: RadioInfo) => {
+      setRadios((prev) => [...prev, newRadio]);
     });
 
-    socket.on("radioError", (err) => {
-      console.warn("Socket radio error:", err);
+    socket.on("radioDeleted", ({ radioId }: { radioId: string }) => {
+      setRadios((prev) => prev.filter((r) => r.radioId !== radioId));
+      if (current?.radioId === radioId) setCurrent(null);
     });
 
+    socket.on(
+      "radioJoined",
+      (data: RadioInfo & { currentSong: any; currentTime: number }) => {
+        setCurrent({
+          radioId: data.radioId,
+          name: data.name,
+          creator: data.creator,
+          playlistId: data.playlistId,
+          participants: data.participants,
+          currentSong: data.currentSong,
+          currentTime: data.currentTime,
+        });
+      }
+    );
+
+    socket.on(
+      "songUpdated",
+      (evt: { radioId: string; currentSong: any; currentTime: number }) => {
+        setCurrent((prev) =>
+          prev && prev.radioId === evt.radioId
+            ? { ...prev, currentSong: evt.currentSong, currentTime: evt.currentTime }
+            : prev
+        );
+      }
+    );
+
+    socket.on(
+      "timeSynced",
+      (evt: { radioId: string; currentTime: number }) => {
+        setCurrent((prev) =>
+          prev && prev.radioId === evt.radioId
+            ? { ...prev, currentTime: evt.currentTime }
+            : prev
+        );
+      }
+    );
+
+    socket.on("radioPlay", () => { /* opcional: UI extra */ });
+    socket.on("songPaused", () => { /* opcional: UI extra */ });
+    socket.on("songResumed", () => { /* opcional: UI extra */ });
+
+    // petición inicial
     socket.emit("getLiveRadios");
 
     return () => {
-      // No desconectes aquí si quieres que sea singleton global
-      // socket.off(...) si necesitas limpiar listeners específicos
+      socket.off("liveRadios");
+      socket.off("radioListUpdated");
+      socket.off("radioCreated");
+      socket.off("radioDeleted");
+      socket.off("radioJoined");
+      socket.off("songUpdated");
+      socket.off("timeSynced");
+      socket.off("radioPlay");
+      socket.off("songPaused");
+      socket.off("songResumed");
     };
-  }, []);
+  }, [socket, current?.radioId]);
+
+  // ——— EMITS ————————————————————————————————————————————————
+
+  /** Pide lista de radios */
+  const fetchLiveRadios = () => {
+    socket.emit("getLiveRadios");
+  };
+
+  /** Crea nueva radio */
+  const createRadio = ({ name, creatorId, playlistId }: CreatePayload) => {
+    socket.emit("createRadio", { name, creatorId, playlistId });
+  };
+
+  /** Borra radio */
+  const deleteRadio = (radioId: string, userId: string) => {
+    socket.emit("deleteRadio", { radioId, userId });
+    if (current?.radioId === radioId) setCurrent(null);
+  };
+
+  /** Únete */
+  const joinRadio = (radioId: string, userId: string) => {
+    socket.emit("joinRadio", radioId, userId);
+  };
+
+  /** Sal */
+  const leaveRadio = (radioId: string, userId: string) => {
+    socket.emit("leaveRadio", radioId, userId);
+    setCurrent(null);
+  };
+
+  /** Play / Pause / Seek / ChangeSong */
+  const playRadio = (radioId: string, userId: string) =>
+    socket.emit("radioPlay", { radioId, userId });
+  const pauseRadio = (radioId: string, userId: string) =>
+    socket.emit("pauseSong", { radioId, userId });
+  const seekRadio = (radioId: string, userId: string, currentTime: number) =>
+    socket.emit("syncTime", { radioId, userId, currentTime });
+  const changeSong = (
+    radioId: string,
+    userId: string,
+    song: { id: string; name: string }
+  ) => socket.emit("updateSong", { radioId, userId, songId: song.id });
 
   return {
     radios,

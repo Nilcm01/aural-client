@@ -1,15 +1,19 @@
-// app/(tabs)/RadioTab.tsx
-import React, { useEffect, useRef, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+} from "react-native";
 import { useToken } from "../context/TokenContext";
 import { useRadio, RadioInfo } from "../utils/useRadio";
 import RadioRoomModal from "../components/RadioRoomModal";
-import { io, Socket } from "socket.io-client";
 
 export default function RadioTab() {
   const { token } = useToken();
   const userId = token!.user_id;
-  const socketRef = useRef<Socket>();
 
   const {
     radios,
@@ -17,7 +21,6 @@ export default function RadioTab() {
     createRadio,
     deleteRadio,
     joinRadio,
-    socket
   } = useRadio();
 
   const [modalRadio, setModalRadio] = useState<RadioInfo | null>(null);
@@ -26,78 +29,54 @@ export default function RadioTab() {
     fetchLiveRadios();
   }, []);
 
-  const onCreate = async () => {
-  
-  if (socket) {
-    socket.emit("createRadio", {
-      name: `Radio from ${userId}`,
-      creatorId: userId,
-      playlistId: "X"
-    });
-    socket.on("radioCreated", (newRadio) => {
-      console.log("New radio created: ", newRadio);
-      socket.emit("getLiveRadios");
-    });
-  } else {
-    console.error("Socket is undefined. Unable to emit 'createRadio'.");
-  }
+  const onCreate = () => {
+    createRadio({ name: `Radio from ${userId}`, creatorId: userId, playlistId: "X" });
   };
 
-  const onDelete = (radioId: string, userId: string) => {
-    console.log("RadioId: ", radioId, " UserId: ", userId);
-    if (!socket) return;
+  const onDelete = (radioId: string) => {
+    deleteRadio(radioId, userId);
+  };
 
-    socket.emit("deleteRadio", {
-      userId: userId,
-      radioId
-    });
-
-    socket.once("radioDeleted", ({ radioId }) => {
-      console.log("✅ Radio eliminada:", radioId);
-      fetchLiveRadios();
-    });
-
-    socket.once("radioError", (err) => {
-      console.warn("⚠️ Error al borrar:", err);
-    });
+  const onPressItem = (item: RadioInfo) => {
+    joinRadio(item.radioId, userId);
+    setModalRadio(item);
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.createBtn}  onPress={onCreate}>
+      <TouchableOpacity style={styles.createBtn} onPress={onCreate}>
         <Text style={styles.createText}>+ Nueva Radio</Text>
       </TouchableOpacity>
 
       <FlatList
         data={radios}
         keyExtractor={(r) => r.radioId}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <View style={styles.row}>
-            <TouchableOpacity
-              style={styles.rowLeft}
-              onPress={() => {
-                joinRadio(item.radioId, userId);
-                setModalRadio(item);
-              }}
-            >
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => onPressItem(item)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
               <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.subtitle}>
-                Creador: {item.creator} — Oyentes: {item.participants.length}
-              </Text>
-            </TouchableOpacity>
-
-            {/* {item.creator === userId && ( */}
-              <TouchableOpacity onPress={() => onDelete(item.radioId, item.creator)}>
+              <TouchableOpacity onPress={() => onDelete(item.radioId)}>
                 <Text style={styles.delete}>🗑️</Text>
               </TouchableOpacity>
-            {/* )} */}
-          </View>
+            </View>
+            <Text style={styles.subtitle}>
+              Creador: <Text style={styles.accent}>{item.creator}</Text>
+            </Text>
+            <Text style={styles.subtitle}>
+              Oyentes: <Text style={styles.accent}>{item.participants.length}</Text>
+            </Text>
+          </TouchableOpacity>
         )}
       />
 
       {modalRadio && (
         <RadioRoomModal
-          visible={!!modalRadio}
+          visible
           radio={modalRadio}
           onClose={() => setModalRadio(null)}
         />
@@ -106,26 +85,60 @@ export default function RadioTab() {
   );
 }
 
+const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: "#121212",
+    padding: 16,
+  },
+  listContent: {
+    paddingBottom: 32,
+  },
   createBtn: {
     backgroundColor: "#F05858",
-    padding: 12,
-    borderRadius: 6,
+    paddingVertical: 14,
+    borderRadius: 8,
     marginBottom: 16,
-    alignItems: "center"
+    alignItems: "center",
   },
-  createText: { color: "white", fontWeight: "bold" },
-  row: {
+  createText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  card: {
+    backgroundColor: "#1A1A1A",
+    borderColor: "#F05858",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    width: width - 32,
+    alignSelf: "center",
+  },
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomColor: "#333",
-    borderBottomWidth: 1
+    marginBottom: 8,
   },
-  rowLeft: { flex: 1 },
-  name: { color: "white", fontSize: 18 },
-  subtitle: { color: "#aaa", fontSize: 12, marginTop: 4 },
-  delete: { fontSize: 20, color: "#F05858", paddingHorizontal: 8 }
+  name: {
+    color: "#F05858",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  delete: {
+    fontSize: 20,
+    color: "#F05858",
+  },
+  subtitle: {
+    color: "#BBBBBB",
+    fontSize: 14,
+    marginTop: 2,
+  },
+  accent: {
+    color: "#F05858",
+    fontWeight: "600",
+  },
 });
