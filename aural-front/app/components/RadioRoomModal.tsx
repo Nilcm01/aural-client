@@ -49,7 +49,7 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
   const [displayTime, setDisplayTime] = useState(radio.currentTime);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Spotify Web API helpers
+  // — Spotify Web API helpers —
   const playTrack = async (uri: string, position_ms = 0) => {
     if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
     try {
@@ -114,9 +114,10 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     return () => clearInterval(timer);
   }, [isPlaying]);
 
-  // Al abrir el modal, inicializa con /me/player
+  // — SOLO EL CREADOR inicializa con /me/player al abrir el modal —
   useEffect(() => {
     if (!visible || !token?.access_token) return;
+    if (userId !== radio.creator) return;
     (async () => {
       try {
         const res = await fetch(
@@ -149,7 +150,7 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
         console.warn("[Spotify] GET /me/player failed", e);
       }
     })();
-  }, [visible, token?.access_token]);
+  }, [visible, token?.access_token, userId, radio.creator]);
 
   // Función para obtener la imagen de un track
   const fetchTrackImage = async (trackId: string) => {
@@ -269,12 +270,10 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
       socket.off("radioJoined", onRadioJoined);
       socket.off("songUpdated", onSongUpdated);
       socket.off("timeSynced", onTimeSynced);
-      socket.off("radioPlay", () => setIsPlaying(true));
-      socket.off("songPaused", () => setIsPlaying(false));
-      socket.off("songResumed", () => setIsPlaying(true));
-      socket.off("radioDeleted", ({ radioId }: any) => {
-        if (radioId === radio.radioId) onClose();
-      });
+      socket.off("radioPlay");
+      socket.off("songPaused");
+      socket.off("songResumed");
+      socket.off("radioDeleted");
     };
   }, [socket]);
 

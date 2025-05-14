@@ -1,5 +1,7 @@
+// app/utils/useRadio.ts
+
 import { useEffect, useState } from "react";
-import { getSocket } from "./socket";
+import { API_URL, getSocket } from "./socket";
 import { Socket } from "socket.io-client";
 
 export interface RadioInfo {
@@ -23,7 +25,7 @@ export function useRadio() {
   const [current, setCurrent] = useState<RadioInfo | null>(null);
   const socket: Socket = getSocket();
 
-  // ——— WS LISTENERS —————————————————————————————————————————
+  // — WS LISTENERS —————————————————————————————————————————
   useEffect(() => {
     socket.on("liveRadios", (list: RadioInfo[]) => {
       setRadios(list);
@@ -79,11 +81,12 @@ export function useRadio() {
       }
     );
 
-    socket.on("radioPlay", () => { /* opcional: UI extra */ });
-    socket.on("songPaused", () => { /* opcional: UI extra */ });
-    socket.on("songResumed", () => { /* opcional: UI extra */ });
+    // Optional UI hooks
+    socket.on("radioPlay",   () => {});
+    socket.on("songPaused",  () => {});
+    socket.on("songResumed", () => {});
 
-    // petición inicial
+    // initial fetch
     socket.emit("getLiveRadios");
 
     return () => {
@@ -100,7 +103,7 @@ export function useRadio() {
     };
   }, [socket, current?.radioId]);
 
-  // ——— EMITS ————————————————————————————————————————————————
+  // — EMITS ————————————————————————————————————————————————
 
   /** Pide lista de radios */
   const fetchLiveRadios = () => {
@@ -130,17 +133,17 @@ export function useRadio() {
   };
 
   /** Play / Pause / Seek / ChangeSong */
-  const playRadio = (radioId: string, userId: string) =>
+  const playRadio   = (radioId: string, userId: string) =>
     socket.emit("radioPlay", { radioId, userId });
-  const pauseRadio = (radioId: string, userId: string) =>
+
+  const pauseRadio  = (radioId: string, userId: string) =>
     socket.emit("pauseSong", { radioId, userId });
-  const seekRadio = (radioId: string, userId: string, currentTime: number) =>
+
+  const seekRadio   = (radioId: string, userId: string, currentTime: number) =>
     socket.emit("syncTime", { radioId, userId, currentTime });
-  const changeSong = (
-    radioId: string,
-    userId: string,
-    song: { id: string; name: string }
-  ) => socket.emit("updateSong", { radioId, userId, songId: song.id });
+
+  const changeSong  = (radioId: string, userId: string, song: { id: string; name: string }) =>
+    socket.emit("updateSong", { radioId, userId, songId: song.id });
 
   return {
     radios,
