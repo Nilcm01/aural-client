@@ -1,7 +1,6 @@
 // app/utils/useRadio.ts
-
 import { useEffect, useState } from "react";
-import { API_URL, getSocket } from "./socket";
+import { getSocket } from "./socket";
 import { Socket } from "socket.io-client";
 
 export interface RadioInfo {
@@ -14,18 +13,11 @@ export interface RadioInfo {
   currentTime: number;
 }
 
-interface CreatePayload {
-  name: string;
-  creatorId: string;
-  playlistId: string;
-}
-
 export function useRadio() {
   const [radios, setRadios] = useState<RadioInfo[]>([]);
   const [current, setCurrent] = useState<RadioInfo | null>(null);
   const socket: Socket = getSocket();
 
-  // — WS LISTENERS —————————————————————————————————————————
   useEffect(() => {
     socket.on("liveRadios", (list: RadioInfo[]) => {
       setRadios(list);
@@ -44,9 +36,11 @@ export function useRadio() {
       if (current?.radioId === radioId) setCurrent(null);
     });
 
+    // **Aquí recibimos el estado completo al unirnos**
     socket.on(
       "radioJoined",
       (data: RadioInfo & { currentSong: any; currentTime: number }) => {
+        console.log("[useRadio] ← radioJoined:", data);
         setCurrent({
           radioId: data.radioId,
           name: data.name,
@@ -81,12 +75,6 @@ export function useRadio() {
       }
     );
 
-    // Optional UI hooks
-    socket.on("radioPlay",   () => {});
-    socket.on("songPaused",  () => {});
-    socket.on("songResumed", () => {});
-
-    // initial fetch
     socket.emit("getLiveRadios");
 
     return () => {
@@ -97,52 +85,29 @@ export function useRadio() {
       socket.off("radioJoined");
       socket.off("songUpdated");
       socket.off("timeSynced");
-      socket.off("radioPlay");
-      socket.off("songPaused");
-      socket.off("songResumed");
     };
   }, [socket, current?.radioId]);
 
-  // — EMITS ————————————————————————————————————————————————
-
-  /** Pide lista de radios */
-  const fetchLiveRadios = () => {
-    socket.emit("getLiveRadios");
-  };
-
-  /** Crea nueva radio */
-  const createRadio = ({ name, creatorId, playlistId }: CreatePayload) => {
-    socket.emit("createRadio", { name, creatorId, playlistId });
-  };
-
-  /** Borra radio */
-  const deleteRadio = (radioId: string, userId: string) => {
+  const fetchLiveRadios = () => socket.emit("getLiveRadios");
+  const createRadio    = (p: { name: string; creatorId: string; playlistId: string }) =>
+    socket.emit("createRadio", p);
+  const deleteRadio    = (radioId: string, userId: string) => {
     socket.emit("deleteRadio", { radioId, userId });
     if (current?.radioId === radioId) setCurrent(null);
   };
-
-  /** Únete */
-  const joinRadio = (radioId: string, userId: string) => {
+  const joinRadio      = (radioId: string, userId: string) =>
     socket.emit("joinRadio", radioId, userId);
-  };
-
-  /** Sal */
-  const leaveRadio = (radioId: string, userId: string) => {
+  const leaveRadio     = (radioId: string, userId: string) => {
     socket.emit("leaveRadio", radioId, userId);
     setCurrent(null);
   };
-
-  /** Play / Pause / Seek / ChangeSong */
-  const playRadio   = (radioId: string, userId: string) =>
+  const playRadio      = (radioId: string, userId: string) =>
     socket.emit("radioPlay", { radioId, userId });
-
-  const pauseRadio  = (radioId: string, userId: string) =>
+  const pauseRadio     = (radioId: string, userId: string) =>
     socket.emit("pauseSong", { radioId, userId });
-
-  const seekRadio   = (radioId: string, userId: string, currentTime: number) =>
+  const seekRadio      = (radioId: string, userId: string, currentTime: number) =>
     socket.emit("syncTime", { radioId, userId, currentTime });
-
-  const changeSong  = (radioId: string, userId: string, song: { id: string; name: string }) =>
+  const changeSong     = (radioId: string, userId: string, song: { id: string; name: string }) =>
     socket.emit("updateSong", { radioId, userId, songId: song.id });
 
   return {
