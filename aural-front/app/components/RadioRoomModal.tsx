@@ -50,21 +50,38 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
   const [isPlaying, setIsPlaying] = useState(false);
 
   // — Spotify Web API helpers —
-  const playTrack = async (uri: string, position_ms = 0) => {
-    if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
-    try {
-      await fetch("https://api.spotify.com/v1/me/player/play", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uris: [uri], position_ms }),
-      });
-    } catch {
-      Alert.alert("Error", "Play failed");
-    }
-  };
+  const playTrack = async (
+  uri: string,
+  position_ms = 0,
+  device_id?: string
+) => {
+  if (!token?.access_token) {
+    Alert.alert("Error", "No Spotify token");
+    return;
+  }
+
+  // Construimos la URL, añadiendo device_id si existe
+  const url = device_id
+    ? `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(device_id)}`
+    : "https://api.spotify.com/v1/me/player/play";
+
+  try {
+    await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        uris: [uri],
+        position_ms,
+      }),
+    });
+  } catch (e) {
+    console.error("playTrack failed", e);
+    Alert.alert("Error", "Play failed");
+  }
+};
 
   const pauseTrack = async () => {
     if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
