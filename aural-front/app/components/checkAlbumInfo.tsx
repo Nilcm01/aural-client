@@ -114,7 +114,7 @@ const AlbumInfo: React.FC = () => {
   };
 
   if (loading) return <View style={s.loader}><ActivityIndicator size="large" color="#f05858" /></View>;
-  if (!album) return <View style={s.loader}><Text style={s.error}>Álbum no encontrado.</Text></View>;
+  if (!album) return <View style={s.loader}><Text style={s.error}>Album not found</Text></View>;
 
   const year = album.release_date.slice(0, 4);
   const renderSong = ({ item }: { item: Track }) => (

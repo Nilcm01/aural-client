@@ -1,4 +1,4 @@
-import { Text, View, Button, ScrollView, StyleSheet, TouchableOpacity, Image, FlatList, Dimensions } from "react-native";
+import { Text, View, Button, ScrollView, StyleSheet, TouchableOpacity, Image, FlatList, Dimensions, ActivityIndicator } from "react-native";
 import { MaterialIcons } from '@expo/vector-icons';
 import { useReproBarVisibility } from "./WebPlayback";
 import React, { useEffect } from "react";
@@ -360,7 +360,9 @@ const HomeMenu = () => {
               keyExtractor={(item) => item.id}
               horizontal
               showsHorizontalScrollIndicator={false} />) : (
-            <Text style={{ color: "gray", fontSize: 16, margin: 20, fontStyle: 'italic' }}>loading...</Text>
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#f05858" />
+            </View>
           )}
         </ScrollView>
       </View>
@@ -380,6 +382,14 @@ const styles = StyleSheet.create({
     marginLeft: 20,
     marginRight: 20,
     width: Dimensions.get("window").width,
+  },
+  loaderContainer: {
+    width: Dimensions.get("window").width,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+    marginTop: 20,
+    marginBottom: 20,
   },
   row: {
     top: 0,
