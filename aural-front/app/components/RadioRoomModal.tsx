@@ -42,20 +42,21 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
   const [seekTime, setSeekTime] = useState("0");
   const [newTrack, setNewTrack] = useState("");
 
-  const [displaySong, setDisplaySong] = useState<SongDisplay | null>(
-    radio.currentSong
-      ? { id: radio.currentSong.id, name: radio.currentSong.name }
-      : null
-  );
+  // Inicializa displaySong protegiendo string o objeto
+  const initialSong =
+    radio.currentSong == null
+      ? null
+      : typeof radio.currentSong === "string"
+      ? { id: radio.currentSong, name: "" }
+      : { id: radio.currentSong.id, name: radio.currentSong.name };
+
+  const [displaySong, setDisplaySong] = useState<SongDisplay | null>(initialSong);
   const [displayTime, setDisplayTime] = useState(radio.currentTime);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // — Spotify Web API helpers —
+  /** — Spotify Web API helpers — */
   const playTrack = async (uri: string, position_ms = 0) => {
-    if (!token?.access_token) {
-      Alert.alert("Error", "No Spotify token");
-      return;
-    }
+    if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
     try {
       await fetch("https://api.spotify.com/v1/me/player/play", {
         method: "PUT",
@@ -86,31 +87,25 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
   const seekTrack = async (ms: number) => {
     if (!token?.access_token) return Alert.alert("Error", "No Spotify token");
     try {
-      await fetch(
-        `https://api.spotify.com/v1/me/player/seek?position_ms=${ms}`,
-        {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token.access_token}` },
-        }
-      );
+      await fetch(`https://api.spotify.com/v1/me/player/seek?position_ms=${ms}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      });
     } catch {
       Alert.alert("Error", "Seek failed");
     }
   };
 
-  // Increment displayTime each second when playing
+  /** Incrementa displayTime cada segundo cuando está sonando */
   useEffect(() => {
     if (!isPlaying) return;
-    const timer = setInterval(() => {
-      setDisplayTime((t) => t + 1);
-    }, 1000);
+    const timer = setInterval(() => setDisplayTime((t) => t + 1), 1000);
     return () => clearInterval(timer);
   }, [isPlaying]);
 
-  // Initialize for creator on open
+  /** Para el creador, al abrir el modal, sincroniza con /me/player */
   useEffect(() => {
-    if (!visible || !token?.access_token) return;
-    if (userId !== radio.creator) return;
+    if (!visible || !token?.access_token || userId !== radio.creator) return;
     (async () => {
       try {
         const res = await fetch("https://api.spotify.com/v1/me/player?market=ES", {
@@ -126,10 +121,10 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
         const item = data.item;
         if (item) {
           setDisplaySong({
-          id: item.id,
-          name: item.name,
-          image: item.album?.images?.[0]?.url   // <-- guardamos con opcional
-        });
+            id: item.id,
+            name: item.name,
+            image: item.album?.images?.[0]?.url
+          });
           const secs = (data.progress_ms ?? 0) / 1000;
           setDisplayTime(secs);
           setIsPlaying(data.is_playing);
@@ -141,7 +136,7 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     })();
   }, [visible, token?.access_token, userId, radio.creator]);
 
-  // Fetch album art for a track
+  /** Obtiene carátula y nombre de un track */
   const fetchTrackImage = async (trackId: string) => {
     if (!token?.access_token) return;
     try {
@@ -149,36 +144,31 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
         headers: { Authorization: `Bearer ${token.access_token}` }
       });
       const info = await res.json();
-      setDisplaySong((s) =>
-        s ? {
-          id: info.id,
-          name: info.name,
-          image: info.album?.images?.[0]?.url   // <-- otro guardado con opcional
-        } : null
-      );
+      setDisplaySong({
+        id: info.id,
+        name: info.name,
+        image: info.album?.images?.[0]?.url
+      });
     } catch {
       console.warn("[Spotify] GET /tracks/{id} failed");
     }
   };
 
-  // — Handlers + WS emits —
+  /** — Handlers + WS emits — */
 
-  // Option B) seed song then play
+  // Opción B) “sembrar” canción en servidor antes de play
   const handlePlay = () => {
-    if (!displaySong) {
-      return Alert.alert("Error", "No hay canción elegida");
-    }
+    if (!displaySong) return Alert.alert("Error", "No hay canción elegida");
 
-    // ① Seed the currentSong on server
+    // ① Seed currentSong en el servidor
     changeSong(radio.radioId, userId, {
-      id:   displaySong.id,
+      id: displaySong.id,
       name: displaySong.name
     });
-
-    // Reset time to 0 on server
+    // ①b Reset time a 0 en servidor
     seekRadio(radio.radioId, userId, 0);
 
-    // ② Now play locally and notify
+    // ② Arranca localmente y notifica play
     playTrack(`spotify:track:${displaySong.id}`, 0);
     setDisplayTime(0);
     setIsPlaying(true);
@@ -211,14 +201,10 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
       `¿Seguro que quieres borrar "${radio.name}"?`,
       [
         { text: "Cancelar", style: "cancel" },
-        {
-          text: "Borrar",
-          style: "destructive",
-          onPress: () => {
+        { text: "Borrar", style: "destructive", onPress: () => {
             deleteRadio(radio.radioId, userId);
             onClose();
-          }
-        }
+        }}
       ]
     );
   };
@@ -228,21 +214,35 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     onClose();
   };
 
-  // WS listeners to update UI
+  /** WS listeners para mantener todo sincronizado */
   useEffect(() => {
     if (!socket) return;
 
-    const onRadioJoined = (data: { currentSong: SongDisplay | null; currentTime: number }) => {
-      setDisplaySong(data.currentSong);
-      if (data.currentSong) fetchTrackImage(data.currentSong.id);
+    const onRadioJoined = (data: { currentSong: string|SongDisplay|null; currentTime: number }) => {
+      const song = data.currentSong;
+      if (typeof song === "string") {
+        setDisplaySong({ id: song, name: "" });
+        fetchTrackImage(song);
+      } else {
+        setDisplaySong(song);
+        if (song) fetchTrackImage(song.id);
+      }
       setDisplayTime(data.currentTime);
-      setIsPlaying(true);
+      if (song) playTrack(`spotify:track:${typeof song === "string" ? song : song.id}`, data.currentTime * 1000);
+      setIsPlaying(!!song);
     };
 
-    const onSongUpdated = ({ currentSong, currentTime }: any) => {
-      setDisplaySong(currentSong);
-      fetchTrackImage(currentSong.id);
-      setDisplayTime(currentTime);
+    const onSongUpdated = (evt: { currentSong: string|SongDisplay; currentTime: number }) => {
+      const song = evt.currentSong;
+      if (typeof song === "string") {
+        setDisplaySong({ id: song, name: "" });
+        fetchTrackImage(song);
+      } else {
+        setDisplaySong(song);
+        fetchTrackImage(song.id);
+      }
+      setDisplayTime(evt.currentTime);
+      playTrack(`spotify:track:${typeof song === "string" ? song : song.id}`, evt.currentTime * 1000);
       setIsPlaying(true);
     };
 
@@ -250,20 +250,20 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
       setDisplayTime(currentTime);
     };
 
-    socket.on("radioJoined",  onRadioJoined);
-    socket.on("songUpdated",  onSongUpdated);
-    socket.on("timeSynced",   onTimeSynced);
-    socket.on("radioPlay",    () => setIsPlaying(true));
-    socket.on("songPaused",   () => setIsPlaying(false));
-    socket.on("songResumed",  () => setIsPlaying(true));
+    socket.on("radioJoined", onRadioJoined);
+    socket.on("songUpdated", onSongUpdated);
+    socket.on("timeSynced", onTimeSynced);
+    socket.on("radioPlay",   () => setIsPlaying(true));
+    socket.on("songPaused",  () => setIsPlaying(false));
+    socket.on("songResumed", () => setIsPlaying(true));
     socket.on("radioDeleted", ({ radioId }: any) => {
       if (radioId === radio.radioId) onClose();
     });
 
     return () => {
-      socket.off("radioJoined",  onRadioJoined);
-      socket.off("songUpdated",  onSongUpdated);
-      socket.off("timeSynced",   onTimeSynced);
+      socket.off("radioJoined", onRadioJoined);
+      socket.off("songUpdated", onSongUpdated);
+      socket.off("timeSynced", onTimeSynced);
       socket.off("radioPlay");
       socket.off("songPaused");
       socket.off("songResumed");
