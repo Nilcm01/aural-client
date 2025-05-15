@@ -71,113 +71,106 @@ const HomeMenu = () => {
     (async () => {
       setRecent([]);
       try {
-        // fetch
+        // Fetch recently played tracks
         const recentRes = await fetch(`https://api.spotify.com/v1/me/player/recently-played?limit=${50}`, {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token.access_token}`,
             "Content-Type": "application/json",
-          }
+          },
         });
 
-        // check for error in return
         if (!recentRes.ok) {
-          setError('Failed to get recent elements.');
-          throw new Error('Spotify API error: ' + `${recentRes.status} ${recentRes.statusText}`);
+          setError("Failed to get recent elements.");
+          throw new Error(`Spotify API error: ${recentRes.status} ${recentRes.statusText}`);
         }
 
         const recentData = await recentRes.json();
-        console.log('Recent data:', recentData);
         if (!recentData) return;
 
-        var recentContent: (Artist | Album | Playlist)[] = [];
+        // Collect all fetch promises for unique items
+        const fetchPromises = recentData.items.map(async (item: any) => {
+          if (!item.context) {
+            return {
+              id: item.track.album.id,
+              name: item.track.album.name,
+              images: item.track.album.images,
+              artists: item.track.artists,
+              type: item.track.album.album_type,
+            } as Album;
+          }
 
-        recentData.items.forEach(async (item: any) => {
-          // Collect promises for all fetch operations
-          const fetchPromises = recentData.items.map(async (item: any) => {
-            if (!item.context) {
-              return {
-                id: item.track.album.id,
-                name: item.track.album.name,
-                images: item.track.album.images,
-                artists: item.track.artists,
-                type: item.track.album.album_type,
-              } as Album;
-            }
+          if (item.context.type === "artist") {
+            const artistRes = await fetch(`${item.context.href}`, {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token.access_token}`,
+                "Content-Type": "application/json",
+              },
+            });
+            if (!artistRes.ok) return null;
+            const artistData = await artistRes.json();
+            return {
+              id: artistData.id,
+              name: artistData.name,
+              images: artistData.images,
+            } as Artist;
+          }
 
-            if (item.context.type === "artist") {
-              const artistRes = await fetch(`${item.context.href}`, {
+          if (item.context.type === "album") {
+            return {
+              id: item.track.album.id,
+              name: item.track.album.name,
+              images: item.track.album.images,
+              artists: item.track.artists,
+              type: item.track.album.album_type,
+            } as Album;
+          }
+
+          if (item.context.type === "playlist") {
+            const playlistRes = await fetch(
+              `https://api.spotify.com/v1/playlists/${item.context.uri.split(":")[2]}?fields=description,id,images,name,owner,tracks`,
+              {
                 method: "GET",
                 headers: {
                   Authorization: `Bearer ${token.access_token}`,
                   "Content-Type": "application/json",
                 },
-              });
-              if (!artistRes.ok) return null;
-              const artistData = await artistRes.json();
-              return {
-                id: artistData.id,
-                name: artistData.name,
-                images: artistData.images,
-              } as Artist;
-            }
-
-            if (item.context.type === "album") {
-              return {
-                id: item.track.album.id,
-                name: item.track.album.name,
-                images: item.track.album.images,
-                artists: item.track.artists,
-                type: item.track.album.album_type,
-              } as Album;
-            }
-
-            if (item.context.type === "playlist") {
-              const playlistRes = await fetch(
-                `https://api.spotify.com/v1/playlists/${item.context.uri.split(":")[2]}?fields=description,id,images,name,owner,tracks`,
-                {
-                  method: "GET",
-                  headers: {
-                    Authorization: `Bearer ${token.access_token}`,
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
-              if (!playlistRes.ok) return null;
-              const playlistData = await playlistRes.json();
-              return {
-                id: playlistData.id,
-                name: playlistData.name,
-                images: playlistData.images,
-                owner: {
-                  display_name: playlistData.owner.display_name,
-                  id: playlistData.owner.id,
-                },
-              } as Playlist;
-            }
-
-            return null;
-          });
-
-          // Wait for all fetches to complete
-          const results = await Promise.all(fetchPromises);
-
-          // Filter out null values and remove duplicates
-          const uniqueResults = results.filter(Boolean).filter((item, index, self) => {
-            const stringifiedItem = JSON.stringify(item);
-            return (
-              index ===
-              self.findIndex((obj) => JSON.stringify(obj) === stringifiedItem)
+              }
             );
-          });
+            if (!playlistRes.ok) return null;
+            const playlistData = await playlistRes.json();
+            return {
+              id: playlistData.id,
+              name: playlistData.name,
+              images: playlistData.images,
+              owner: {
+                display_name: playlistData.owner.display_name,
+                id: playlistData.owner.id,
+              },
+            } as Playlist;
+          }
 
-          setRecent(uniqueResults);
+          return null;
         });
 
-        //setError('');
+        // Wait for all fetches to complete
+        const results = await Promise.all(fetchPromises);
+
+        // Filter out null values and remove duplicates
+        const uniqueResults = results.filter(Boolean).filter((item, index, self) => {
+          const stringifiedItem = JSON.stringify(item);
+          return (
+            index ===
+            self.findIndex((obj) => JSON.stringify(obj) === stringifiedItem)
+          );
+        });
+
+        // Update state once with the final results
+        setRecent(uniqueResults);
       } catch (e) {
         console.error(`Error fetching recent elements: ${e}`);
-        setError('Failed to load recent elements');
+        setError("Failed to load recent elements");
       } finally {
         setLoading(false);
       }

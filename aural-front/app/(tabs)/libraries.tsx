@@ -31,8 +31,19 @@ const LibrariesScreen = () => {
   const [albumsLoaded, setAlbumsLoaded] = React.useState(false);
   const [playlistsLoaded, setPlaylistsLoaded] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string[]>(["", "", ""]);
   const [displayedContent, setDisplayedContent] = React.useState<ContentType>('artist');
+
+  const setErrorMessage = (index: number, message: string) => {
+    if (index === 0)
+      setError([message, error[1], error[2]]);
+    else if (index === 1)
+      setError([error[0], message, error[2]]);
+    else if (index === 2)
+      setError([error[0], error[1], message]);
+    else if (index === -1)
+      setError(["", "", ""]);
+  };
 
   useEffect(() => {
     if (!token?.access_token) return;
@@ -56,7 +67,7 @@ const LibrariesScreen = () => {
 
           // check for error in return
           if (!artistsRes.ok) {
-            setError('Failed to load followed artists.');
+            setErrorMessage(0, 'Failed to load followed artists.');
             throw new Error('Spotify API error: ' + `${artistsRes.status} ${artistsRes.statusText}`);
           }
 
@@ -74,7 +85,7 @@ const LibrariesScreen = () => {
         } while (next !== null)
       } catch (e) {
         console.error(`Error fetching followed artists: ${e}`);
-        setError('Failed to load followed artists.');
+        setErrorMessage(0, 'Failed to load followed artists.');
       } finally {
         // Order the artists by name
         setArtists((prev) => prev.sort((a, b) => a.name.localeCompare(b.name)));
@@ -102,7 +113,7 @@ const LibrariesScreen = () => {
 
           // check for error in return
           if (!albumsRes.ok) {
-            setError('Failed to load saved albums.');
+            setErrorMessage(1, 'Failed to load saved albums.');
             throw new Error('Spotify API error: ' + `${albumsRes.status} ${albumsRes.statusText}`);
           }
 
@@ -126,7 +137,7 @@ const LibrariesScreen = () => {
         }
       } catch (e) {
         console.error(`Error fetching saved albums: ${e}`);
-        setError('Failed to load saved albums.');
+        setErrorMessage(1, 'Failed to load saved albums.');
       } finally {
         // Order the albums by name
         setAlbums((prev) => prev.sort((a, b) => a.name.localeCompare(b.name)));
@@ -154,7 +165,7 @@ const LibrariesScreen = () => {
 
           // check for error in return
           if (!playlistsRes.ok) {
-            setError('Failed to load playlists.');
+            setErrorMessage(2, 'Failed to load playlists.');
             throw new Error('Spotify API error: ' + `${playlistsRes.status} ${playlistsRes.statusText}`);
           }
 
@@ -178,7 +189,7 @@ const LibrariesScreen = () => {
         }
       } catch (e) {
         console.error(`Error fetching playlists: ${e}`);
-        setError('Failed to load playlists.');
+        setErrorMessage(2, 'Failed to load playlists.');
       } finally {
         // Order the playlists by name
         setPlaylists((prev) => prev.sort((a, b) => a.name.localeCompare(b.name)));
@@ -308,11 +319,11 @@ const LibrariesScreen = () => {
           <ActivityIndicator size="large" color="#f05858" />
         </View>
       )}
-      {error && (
+      {/*error && (
         <View style={styles.loaderContainer}>
           <Text style={styles.error}>{error}</Text>
         </View>
-      )}
+      )*/}
 
       <View style={styles.contentSelector}>
         <TouchableOpacity
@@ -343,6 +354,18 @@ const LibrariesScreen = () => {
           }>Playlists</Text>
         </TouchableOpacity>
       </View>
+
+      {error[0] && displayedContent === 'artist' && (
+        <Text style={styles.error}>{error[0]}</Text>
+      )}
+      {error[1] && displayedContent === 'album' && (
+        <Text style={styles.error}>{error[1]}</Text>
+      )}
+      {error[2] && displayedContent === 'playlist' && (
+        <Text style={styles.error}>{error[2]}</Text>
+      )}
+
+      {/* Display the content based on the selected type */}
 
       <ScrollView
         style={styles.container}
@@ -380,12 +403,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#121212',
-    zIndex: 1
+    zIndex: 5
   },
   error: {
     color: 'red',
     textAlign: 'center',
-    marginTop: 50
+    marginTop: 50,
+    width: '100%',
+    height: '100%',
   },
   contentSelector: {
     marginTop: 81,
