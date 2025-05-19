@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// app/components/RadioTab.tsx
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -15,22 +16,27 @@ export default function RadioTab() {
   const { token } = useToken();
   const userId = token!.user_id;
 
+  // ahora también traemos `current` y `leaveRadio`
   const {
     radios,
+    current,
     fetchLiveRadios,
     createRadio,
     deleteRadio,
     joinRadio,
+    leaveRadio,
   } = useRadio();
-
-  const [modalRadio, setModalRadio] = useState<RadioInfo | null>(null);
 
   useEffect(() => {
     fetchLiveRadios();
   }, []);
 
   const onCreate = () => {
-    createRadio({ name: `Radio from ${userId}`, creatorId: userId, playlistId: "X" });
+    createRadio({
+      name: `Radio from ${userId}`,
+      creatorId: userId,
+      playlistId: "X",
+    });
   };
 
   const onDelete = (radioId: string) => {
@@ -38,8 +44,8 @@ export default function RadioTab() {
   };
 
   const onPressItem = (item: RadioInfo) => {
+    console.log("[RadioTab] joinRadio()", item.radioId, userId);
     joinRadio(item.radioId, userId);
-    setModalRadio(item);
   };
 
   return (
@@ -74,11 +80,15 @@ export default function RadioTab() {
         )}
       />
 
-      {modalRadio && (
+      {/** aquí en vez de `modalRadio` usamos directamente el `current` del hook */}
+      {current && (
         <RadioRoomModal
-          visible
-          radio={modalRadio}
-          onClose={() => setModalRadio(null)}
+          visible={true}
+          radio={current}
+          onClose={() => {
+            console.log("[RadioTab] leaveRadio()", current.radioId, userId);
+            leaveRadio(current.radioId, userId);
+          }}
         />
       )}
     </View>
@@ -87,14 +97,8 @@ export default function RadioTab() {
 
 const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-    padding: 16,
-  },
-  listContent: {
-    paddingBottom: 32,
-  },
+  container: { flex: 1, backgroundColor: "#121212", padding: 16 },
+  listContent: { paddingBottom: 32 },
   createBtn: {
     backgroundColor: "#F05858",
     paddingVertical: 14,
@@ -102,11 +106,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: "center",
   },
-  createText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  createText: { color: "white", fontWeight: "bold", fontSize: 16 },
   card: {
     backgroundColor: "#1A1A1A",
     borderColor: "#F05858",
@@ -123,22 +123,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
-  name: {
-    color: "#F05858",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  delete: {
-    fontSize: 20,
-    color: "#F05858",
-  },
-  subtitle: {
-    color: "#BBBBBB",
-    fontSize: 14,
-    marginTop: 2,
-  },
-  accent: {
-    color: "#F05858",
-    fontWeight: "600",
-  },
+  name: { color: "#F05858", fontSize: 18, fontWeight: "bold" },
+  delete: { fontSize: 20, color: "#F05858" },
+  subtitle: { color: "#BBBBBB", fontSize: 14, marginTop: 2 },
+  accent: { color: "#F05858", fontWeight: "600" },
 });
