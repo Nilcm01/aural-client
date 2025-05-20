@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  TextInput,
   Alert
 } from "react-native";
 import { RadioInfo, useRadio } from "../utils/useRadio";
@@ -44,8 +43,6 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     socket
   } = useRadio();
 
-  const [seekTime, setSeekTime] = useState("0");
-  const [newTrack, setNewTrack] = useState("");
   const [displaySong, setDisplaySong] = useState<SongDisplay | null>(
     radio.currentSong
       ? { id: radio.currentSong.id, name: radio.currentSong.name }
@@ -108,7 +105,7 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
         setDisplaySong({
           id: item.id,
           name: item.name,
-          image: item.album?.images?.[0]?.url,  // optional-chaining
+          image: item.album?.images?.[0]?.url,
         });
         setDisplayTime(secs);
         setIsPlaying(data.is_playing);
@@ -161,15 +158,6 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     setDisplayTime(secs);
     seekRadio(radio.radioId, userId, secs);
   };
-  const onChangeSong = () => {
-    if (!newTrack.trim()) return;
-    const fakeId = newTrack.trim().toLowerCase().replace(/\s+/g, "-");
-    changeSong(radio.radioId, userId, { id: fakeId, name: newTrack.trim() });
-    seekRadio(radio.radioId, userId, 0);
-    setNewTrack("");
-  };
-
-  // handleSetCurrent: asigna la pista actual de Spotify
   const handleSetCurrent = async () => {
     if (userId !== radio.creator || !token.access_token) return;
     const res = await fetch("https://api.spotify.com/v1/me/player?market=ES", {
@@ -181,7 +169,6 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     if (!item) return Alert.alert("Error", "Nada sonando");
 
     const secs = (data.progress_ms ?? 0) / 1000;
-    // optional-chaining para la portada
     const imageUrl = item.album?.images?.[0]?.url;
     setDisplaySong({ id: item.id, name: item.name, image: imageUrl });
     setDisplayTime(secs);
@@ -220,17 +207,14 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
     if (!socket) return;
 
     const onRec = (d: any) => {
-      // extraemos id + nombre bruto
       const raw = d.currentSong;
       const songId = typeof raw === "string" ? raw : raw.id;
       const songName = typeof raw === "string" ? "" : raw.name;
 
-      // actualizamos tiempo y reproducimos
       setDisplayTime(d.currentTime);
       playTrack(`spotify:track:${songId}`, d.currentTime * 1000);
       setIsPlaying(true);
 
-      // volvemos a pedir metadata para nombre e imagen
       fetch(`https://api.spotify.com/v1/tracks/${songId}`, {
         headers: { Authorization: `Bearer ${token.access_token}` },
       })
@@ -241,7 +225,6 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
           setDisplaySong({ id: songId, name: realName, image: imageUrl });
         })
         .catch(() => {
-          // en caso de error, al menos dejamos el nombre bruto
           setDisplaySong({ id: songId, name: songName });
         });
     };
@@ -300,35 +283,7 @@ export default function RadioRoomModal({ visible, radio, onClose }: Props) {
             </TouchableOpacity>
           )}
 
-          <View style={styles.row}>
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={seekTime}
-              onChangeText={setSeekTime}
-              placeholder="segundos"
-              placeholderTextColor="#666"
-            />
-            <TouchableOpacity
-              style={styles.smallBtn}
-              onPress={() => handleSeek(Number(seekTime))}
-            >
-              <Text style={styles.smallBtnText}>Mover</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.row}>
-            <TextInput
-              style={styles.input}
-              value={newTrack}
-              onChangeText={setNewTrack}
-              placeholder="nueva canción"
-              placeholderTextColor="#666"
-            />
-            <TouchableOpacity style={styles.smallBtn} onPress={onChangeSong}>
-              <Text style={styles.smallBtnText}>Enviar</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Se han eliminado los controles de Mover y Enviar aquí */}
         </View>
       </View>
     </Modal>
@@ -373,16 +328,4 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   setBtnText: { color: "white", fontWeight: "bold" },
-  row: { flexDirection: "row", marginTop: 16, alignItems: "center" },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#444",
-    padding: 8,
-    color: "white",
-    marginRight: 8,
-    borderRadius: 4,
-  },
-  smallBtn: { padding: 10, backgroundColor: "#F05858", borderRadius: 4 },
-  smallBtnText: { color: "white", fontWeight: "bold" },
 });
