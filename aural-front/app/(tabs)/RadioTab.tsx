@@ -1,5 +1,5 @@
 // app/components/RadioTab.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,21 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import { useToken } from "../context/TokenContext";
 import { useRadio, RadioInfo } from "../utils/useRadio";
 import RadioRoomModal from "../components/RadioRoomModal";
+import { useJams, JamInfo } from "../utils/useJams";
+import JamRoomModal from "../components/JamRoomModal";
 
 export default function RadioTab() {
   const { token } = useToken();
   const userId = token!.user_id;
 
-  // ahora también traemos `current` y `leaveRadio`
+  const [mode, setMode] = useState<"radio" | "jams">("radio");
+  const [visible, setVisible] = useState(false);
+
+  // Radios
   const {
     radios,
     current,
@@ -27,69 +33,132 @@ export default function RadioTab() {
     leaveRadio,
   } = useRadio();
 
+  // Jams
+  const {
+    jams,
+    currentJam,
+    fetchLiveJams,
+    createJam,
+    deleteJam,
+    joinJam,
+    addSongToJam,
+    leaveJam,
+  } = useJams();
+
   useEffect(() => {
-    fetchLiveRadios();
-  }, []);
-
-  const onCreate = () => {
-    createRadio({
-      name: `Radio from ${userId}`,
-      creatorId: userId,
-      playlistId: "X",
-    });
-  };
-
-  const onDelete = (radioId: string) => {
-    deleteRadio(radioId, userId);
-  };
-
-  const onPressItem = (item: RadioInfo) => {
-    console.log("[RadioTab] joinRadio()", item.radioId, userId);
-    joinRadio(item.radioId, userId);
-  };
+    if (mode === "radio") fetchLiveRadios();
+    else fetchLiveJams();
+  }, [mode]);
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.createBtn} onPress={onCreate}>
-        <Text style={styles.createText}>+ Nueva Radio</Text>
-      </TouchableOpacity>
+      <View style={styles.dropdownWrapper}>
+        <Text style={styles.label}>Selecciona tipo de sesión:</Text>
+        <Picker
+          selectedValue={mode}
+          onValueChange={(value) => setMode(value)}
+          dropdownIconColor="white"
+          style={styles.picker}
+        >
+          <Picker.Item label="🎧 Radios" value="radio" />
+          <Picker.Item label="🎸 Jams" value="jams" />
+        </Picker>
+      </View>
 
-      <FlatList
-        data={radios}
-        keyExtractor={(r) => r.radioId}
-        contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => onPressItem(item)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.cardHeader}>
-              <Text style={styles.name}>{item.name}</Text>
-              <TouchableOpacity onPress={() => onDelete(item.radioId)}>
-                <Text style={styles.delete}>🗑️</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.subtitle}>
-              Creador: <Text style={styles.accent}>{item.creator}</Text>
-            </Text>
-            <Text style={styles.subtitle}>
-              Oyentes: <Text style={styles.accent}>{item.participants.length}</Text>
-            </Text>
+      {mode === "radio" ? (
+        <>
+          <TouchableOpacity style={styles.createBtn} onPress={() => createRadio({ name: `Radio de ${userId}`, creatorId: userId, playlistId: "X" })}>
+            <Text style={styles.createText}>+ Nueva Radio</Text>
           </TouchableOpacity>
-        )}
-      />
 
-      {/** aquí en vez de `modalRadio` usamos directamente el `current` del hook */}
-      {current && (
-        <RadioRoomModal
-          visible={true}
-          radio={current}
-          onClose={() => {
-            console.log("[RadioTab] leaveRadio()", current.radioId, userId);
-            leaveRadio(current.radioId, userId);
-          }}
-        />
+          <FlatList
+            data={radios}
+            keyExtractor={(r) => r.radioId}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => joinRadio(item.radioId, userId)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.name}>{item.name}</Text>
+                  <TouchableOpacity onPress={() => deleteRadio(item.radioId, userId)}>
+                    <Text style={styles.delete}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.subtitle}>
+                  Creador: <Text style={styles.accent}>{item.creator}</Text>
+                </Text>
+                <Text style={styles.subtitle}>
+                  Oyentes: <Text style={styles.accent}>{item.participants.length}</Text>
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+
+          {current && (
+            <RadioRoomModal
+              visible={true}
+              radio={current}
+              onClose={() => leaveRadio(current.radioId, userId)}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={styles.createBtn}
+            onPress={async () => {
+              if (!token?.access_token) return;
+
+              const res = await fetch("https://api.spotify.com/v1/me/player/recently-played?limit=5", {
+                headers: {
+                  Authorization: `Bearer ${token.access_token}`,
+                },
+              });
+
+              const data = await res.json();
+              const trackIds = data.items.map((item: any) => item.track.id);
+
+              createJam({
+                name: `Jam de ${userId}`,
+                creatorId: userId,
+                trackIds,
+              });
+            }}
+          >
+            <Text style={styles.createText}>+ Nueva Jam</Text>
+          </TouchableOpacity>
+
+          <FlatList
+            data={jams}
+            keyExtractor={(j) => j.jamId}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.card} onPress={() => {
+                joinJam(item.jamId, userId);
+                setVisible(true);
+              }}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.subtitle}>
+                  Participantes: <Text style={styles.accent}>{item.participants.length}</Text>
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+
+          {currentJam && visible && (
+            <JamRoomModal
+              visible={true}
+              session={currentJam}
+              onClose={() => {
+                leaveJam(currentJam.jamId, userId);
+                setVisible(false);
+              }}
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -99,6 +168,13 @@ const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#121212", padding: 16 },
   listContent: { paddingBottom: 32 },
+  dropdownWrapper: { marginBottom: 12 },
+  label: { color: "#F05858", marginBottom: 6, fontWeight: "bold", fontSize: 15 },
+  picker: {
+    backgroundColor: "#1A1A1A",
+    color: "white",
+    borderRadius: 8,
+  },
   createBtn: {
     backgroundColor: "#F05858",
     paddingVertical: 14,
