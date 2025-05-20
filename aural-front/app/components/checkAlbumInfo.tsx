@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, FlatList, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert
+  ScrollView, ActivityIndicator, Alert,
+  Dimensions
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -25,7 +26,7 @@ interface AlbumDetail {
   release_date: string,
   album_type: string
 }
-interface Track { id: string; name: string, track_number: number }
+interface Track { id: string; name: string, track_number: number, duration_ms: number }
 
 const AlbumInfo: React.FC = () => {
   const { showReproBar } = useReproBarVisibility();
@@ -113,13 +114,37 @@ const AlbumInfo: React.FC = () => {
     }
   };
 
+  // Helper function to format milliseconds to mm:ss
+  const formatTime = (milliseconds: number): string => {
+    if (!milliseconds || isNaN(milliseconds)) return "0:00";
+
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
   if (loading) return <View style={s.loader}><ActivityIndicator size="large" color="#f05858" /></View>;
   if (!album) return <View style={s.loader}><Text style={s.error}>Album not found</Text></View>;
 
   const year = album.release_date.slice(0, 4);
   const renderSong = ({ item }: { item: Track }) => (
-    <TouchableOpacity style={s.songItem} onPress={() => playContent(token?.access_token, 'album', album.id, item.track_number - 1)}>
-      <Text style={s.songText}>{item.name}</Text>
+    <TouchableOpacity
+      style={s.songItem}
+      onPress={() => playContent(token?.access_token, 'album', album.id, item.track_number - 1)}>
+
+      <View style={{}}>
+        <Text style={s.songText}>{item.name}</Text>
+      </View>
+
+      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+        <Text style={{ color: '#ffffff', fontSize: 16 }}>
+          {formatTime(item.duration_ms)}
+        </Text>
+      </View>
+
+
     </TouchableOpacity>
   );
 
@@ -185,9 +210,9 @@ const AlbumInfo: React.FC = () => {
 };
 
 const s = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#121212', 
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
     paddingHorizontal: 10,
     zIndex: 20,
     paddingBottom: 10,
@@ -225,8 +250,23 @@ const s = StyleSheet.create({
     borderColor: '#f05858',
     borderWidth: 0.5
   },
-  songItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#333' },
-  songText: { color: '#fff' }
+  songItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    columnGap: 10
+  },
+  songText: {
+    color: '#fff',
+    fontSize: 18,
+    flexWrap: 'wrap',
+    maxWidth: Dimensions.get('window').width * 0.55,
+  }
+
 });
 
 export default AlbumInfo;
