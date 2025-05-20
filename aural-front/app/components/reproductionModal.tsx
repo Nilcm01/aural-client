@@ -544,6 +544,77 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   };
 
 
+  //// Handle save-to/erase-from library
+  const [saved, setSaved] = useState(false);
+
+  // Get saved status
+  useEffect(() => {
+    if (!token?.access_token || !track.id) return;
+    (async () => {
+      try {
+        const res = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${track.id}`, {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+          }
+        });
+        if (!res.ok) throw new Error();
+        const sav = await res.json();
+        console.log('Track saved:', sav);
+        setSaved(sav[0]);
+      } catch (e) {
+        console.error('Error fetching current track\'s saved status:', e);
+        setSaved(false);
+      }
+    })();
+  }, [track.id, token, visible]);
+
+  // Save or remove from library
+  const handleSaveTrack = async () => {
+    if (!track.id || !token?.access_token) return;
+
+    if (!saved) /* Not saved -> save */ {
+      try {
+        const resSave = await fetch(`https://api.spotify.com/v1/me/tracks`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [track.id] }),
+        });
+
+        if (!resSave.ok) {
+          throw new Error('Spotify API error: ' + `${resSave.status} ${resSave.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(true);
+        console.log('Track saved to library');
+      }
+    } else /* Saved -> remove */ {
+      try {
+        const resDelete = await fetch(`https://api.spotify.com/v1/me/tracks`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [track.id] }),
+        });
+
+        if (!resDelete.ok) {
+          throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(false);
+        console.log('Track removed from library');
+      }
+    }
+  };
+
   return (
     <View>
       <Modal
@@ -569,8 +640,12 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <View key={track.id} style={{ alignItems: 'center', margin: 10 }}>
                   <Image source={{ uri: track.image }} style={styles.cover} />
                   <View style={styles.actions}>
-                    <TouchableOpacity onPress={() => {/* Add to library */ }}>
-                      <MaterialIcons name="add-circle-outline" size={40} color="white" />
+                    <TouchableOpacity onPress={() => { handleSaveTrack(); }}>
+                      <MaterialIcons name={
+                        saved ? 'check-circle' : 'add-circle-outline'
+                      } size={40} color={
+                        saved ? "#f05858" : "white"
+                      } />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={showLyrics}>
                       <MaterialIcons name="text-fields" size={40} color="white" />
@@ -609,7 +684,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <TouchableOpacity onPress={() => player?.togglePlay()}>
                 {isPaused ?
                   <MaterialIcons name="play-circle-outline" size={100} color="white" /> :
-                  <MaterialIcons name="pause-circle-outline" size={100} color="white" />}
+                  <MaterialIcons name="pause-circle-outline" size={100} color="#f05858" />}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => player?.nextTrack()}>
@@ -802,16 +877,10 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
               <Text style={styles.title}>Actions</Text>
 
-              <TouchableOpacity onPress={() => {/* Add to library */ }} style={styles.otherActionsList}>
-                <Text style={{ color: 'white', fontSize: 18 }}>Add to Library</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => {/* Add to playlist */ }} style={styles.otherActionsList}>
-                <Text style={{ color: 'white', fontSize: 18 }}>Add to Playlist</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => {/* Start session */ }} style={styles.otherActionsList}>
-                <Text style={{ color: 'white', fontSize: 18 }}>Start a Session</Text>
+              <TouchableOpacity onPress={() => { handleSaveTrack(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>{
+                  saved ? 'Remove from library' : 'Save to library'
+                  }</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={async () => { goToAlbum(); }} style={styles.otherActionsList}>
