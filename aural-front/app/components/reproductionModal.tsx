@@ -615,6 +615,114 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
     }
   };
 
+
+  //// Handle add to playlist
+  interface Playlist {
+    id: string;
+    name: string;
+    owner: {
+      name: string;
+      id: string;
+    };
+  };
+  const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+
+  // Fetch playlists
+  useEffect(() => {
+    if (!token?.access_token) return;
+
+    const fetchPlaylists = async () => {
+      setPlaylists([]);
+      try {
+        let offset = 0;
+        let hasMorePlaylists = true;
+
+        while (hasMorePlaylists) {
+          // fetch
+          console.log(`Fetching playlists from ${offset} to ${offset + 50}`);
+          const playlistsRes = await fetch(`https://api.spotify.com/v1/me/playlists?limit=50&offset=${offset}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token.access_token}`,
+              "Content-Type": "application/json",
+            }
+          });
+
+          // check for error in return
+          if (!playlistsRes.ok) {
+            throw new Error('Spotify API error: ' + `${playlistsRes.status} ${playlistsRes.statusText}`);
+          }
+
+          const playlistsData = await playlistsRes.json();
+          console.log(playlistsData);
+
+          const al: Playlist[] = playlistsData.items.map((item: any, i: number) => ({
+            id: item.id,
+            name: item.name,
+            owner: {
+              name: item.owner.display_name,
+              id: item.owner.id,
+            },
+          }));
+
+          setPlaylists((prev) => [...prev, ...al]);
+
+          // Check if there are more tracks to fetch
+          if (playlistsData.next) {
+            offset += 50;
+          } else {
+            hasMorePlaylists = false;
+          }
+        }
+      } catch (e) {
+        console.error(`Error fetching playlists: ${e}`);
+      } finally {
+        // Only keep playlists from the current user
+        setPlaylists((prev) => prev.filter((pl) => pl.owner.id === token?.user_id));
+        // Order the playlists by name
+        setPlaylists((prev) => prev.sort((a, b) => a.name.localeCompare(b.name)));
+      }
+    };
+
+    if (playlistModalVisible) {
+      fetchPlaylists();
+    }
+  }, [playlistModalVisible]);
+
+  const addSongToPlaylist = async (playlistId: string) => {
+    if (!track.id || !token?.access_token) return;
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uris: [track.uri] }),
+      });
+      if (!res.ok) throw new Error('Failed to add track to playlist');
+      console.log('Track added to playlist successfully');
+    } catch (error) {
+      console.error('Error adding track to playlist:', error);
+    }
+  };
+
+  const renderPlaylistToHaveSongAdded = ({ pl }: { pl: Playlist }) => {
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          addSongToPlaylist(pl.id);
+          setPlaylistModalVisible(false);
+        }}
+        style={[styles.otherActionsList, {alignItems: 'flex-start'}]}
+
+      >
+        <Text style={{ color: 'white', fontSize: 18 }}>{pl.name}</Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View>
       <Modal
@@ -880,7 +988,11 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <TouchableOpacity onPress={() => { handleSaveTrack(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
                 <Text style={{ color: 'white', fontSize: 18 }}>{
                   saved ? 'Remove from library' : 'Save to library'
-                  }</Text>
+                }</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={async () => { setPlaylistModalVisible(true); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Add to playlist</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={async () => { goToAlbum(); }} style={styles.otherActionsList}>
@@ -902,6 +1014,35 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <TouchableOpacity onPress={() => { shareArtistLink(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
                 <Text style={{ color: 'white', fontSize: 18 }}>Copy this song's artist link</Text>
               </TouchableOpacity>
+
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Add song to playlist */}
+      {playlistModalVisible && (
+        <Modal visible={playlistModalVisible} transparent animationType="slide" onRequestClose={() => setPlaylistModalVisible(false)}>
+          <View style={styles.otherActionsModalOverlay}>
+            <View style={styles.otherActionsModalContent}>
+
+              {/* Close button */}
+              <View style={styles.otherActionsCloseButton}>
+                <TouchableOpacity onPress={() => setPlaylistModalVisible(false)}>
+                  <MaterialIcons name="close" size={30} color="#f05858" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.title}>Add to playlist</Text>
+
+              <FlatList
+                data={playlists}
+                renderItem={({ item }) => renderPlaylistToHaveSongAdded({ pl: item })}
+                keyExtractor={(item) => item.id}
+                style={{ width: '100%', padding: 10 }}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              />
 
             </View>
           </View>

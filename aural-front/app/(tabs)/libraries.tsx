@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, FlatList, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, FlatList, Dimensions, Modal, TextInput, Switch } from "react-native";
 import { useToken } from "../context/TokenContext";
 import { useReproBarVisibility } from "../components/WebPlayback";
 import { useFocusEffect, useNavigation } from "expo-router";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect } from "react";
+import { create } from "domain";
 
 interface Content {
   id: string;
@@ -45,6 +46,7 @@ const LibrariesScreen = () => {
       setError(["", "", ""]);
   };
 
+  // Retrieve all the user's followed artists, saved albums and playlists
   useEffect(() => {
     if (!token?.access_token) return;
 
@@ -147,14 +149,15 @@ const LibrariesScreen = () => {
 
     // Fetch user's playlists
     (async () => {
-      // Empty the albums array
-      setAlbums([]);
+      // Empty the playlists array
+      setPlaylists([]);
       try {
         let offset = 0;
         let hasMorePlaylists = true;
 
         while (hasMorePlaylists) {
           // fetch
+          console.log(`Fetching playlists from ${offset} to ${offset + 50}`);
           const playlistsRes = await fetch(`https://api.spotify.com/v1/me/playlists?limit=50&offset=${offset}`, {
             method: "GET",
             headers: {
@@ -170,12 +173,13 @@ const LibrariesScreen = () => {
           }
 
           const playlistsData = await playlistsRes.json();
+          console.log(playlistsData);
 
           const al: Content[] = playlistsData.items.map((item: any, i: number) => ({
             id: item.id,
             name: item.name,
             subname: item.owner.display_name,
-            image: item.images[0]?.url
+            image: item.images ? item.images[0]?.url : 'https://community.mp3tag.de/uploads/default/original/2X/a/acf3edeb055e7b77114f9e393d1edeeda37e50c9.png'
           }));
 
           setPlaylists((prev) => [...prev, ...al]);
@@ -274,6 +278,63 @@ const LibrariesScreen = () => {
     </TouchableOpacity>
   );
 
+  // Create a new playlist
+  const [newPlaylistModalVisible, setNewPlaylistModalVisible] = React.useState(false);
+  const [newPlaylistName, setNewPlaylistName] = React.useState<string>("");
+  const [newPlaylistDescription, setNewPlaylistDescription] = React.useState<string>("");
+  const [newPlaylistLoading, setNewPlaylistLoading] = React.useState(false);
+  const [newPlaylistResult, setNewPlaylistResult] = React.useState<string>("");
+
+  const createPlaylist = async () => {
+    if (!token?.access_token) return;
+
+    setNewPlaylistLoading(true);
+    setNewPlaylistResult("");
+
+    try {
+      const response = await fetch(`https://api.spotify.com/v1/users/${token.user_id}/playlists`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newPlaylistName,
+          description: newPlaylistDescription,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create playlist');
+      }
+
+      const data = await response.json();
+      console.log('Playlist created:', data);
+
+      const newPlaylist: Content = {
+        id: data.id,
+        name: newPlaylistName,
+        subname: token.user_id,
+        image: data.images ? data.images[0]?.url : 'https://community.mp3tag.de/uploads/default/original/2X/a/acf3edeb055e7b77114f9e393d1edeeda37e50c9.png',
+      };
+      setPlaylists((prev) => [...prev, newPlaylist]);
+      setPlaylists((prev) => prev.sort((a, b) => a.name.localeCompare(b.name)));
+      setNewPlaylistModalVisible(false);
+
+      setNewPlaylistLoading(false);
+      //setNewPlaylistResult("Playlist created successfully");
+    } catch (error) {
+      console.error('Error creating playlist:', error);
+      setNewPlaylistModalVisible(false);
+      setNewPlaylistLoading(false);
+      setNewPlaylistResult("Failed to create playlist");
+    } finally {
+      setNewPlaylistName("");
+      setNewPlaylistDescription("");
+    }
+  };
+
+
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
       <View className="app-bar" style={{
@@ -314,7 +375,7 @@ const LibrariesScreen = () => {
         </View>
       </View>
 
-      {(!albumsLoaded || !artistsLoaded) && (
+      {(!albumsLoaded || !artistsLoaded || !playlistsLoaded) && (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#f05858" />
         </View>
@@ -353,6 +414,20 @@ const LibrariesScreen = () => {
             displayedContent === 'playlist' ? styles.contentSelectorTextActive : styles.contentSelectorText
           }>Playlists</Text>
         </TouchableOpacity>
+        {(displayedContent === 'playlist') && (
+          <TouchableOpacity
+            onPress={() => { setDisplayedContent('playlist'); }}
+            style={[styles.contentSelectorButtonActive, { backgroundColor: '#4CAF50' }]}>
+            <MaterialIcons
+              name="add"
+              size={20}
+              color="white"
+              onPress={() => {
+                setNewPlaylistModalVisible(true);
+              }}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {error[0] && displayedContent === 'artist' && (
@@ -381,6 +456,61 @@ const LibrariesScreen = () => {
         } keyExtractor={i => i.id} />
       </ScrollView>
 
+      {/* New playlist modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={newPlaylistModalVisible}
+        onRequestClose={() => {
+          setNewPlaylistModalVisible(false);
+        }}
+      >
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000AA" }}>
+          <View style={{ width: "80%", backgroundColor: "#1E1E1E", borderRadius: 10, padding: 20 }}>
+            <Text style={{ color: "#fff", fontSize: 18, marginBottom: 20 }}>Create a new playlist</Text>
+            <TextInput
+              style={{ height: 40, borderColor: "#fff", borderWidth: 1, borderRadius: 5, paddingHorizontal: 10, color: "#fff" }}
+              placeholder="Name"
+              placeholderTextColor="#808080"
+              onChangeText={(text: string) => setNewPlaylistName(text)}
+            />
+            <TextInput
+              style={{ height: 40, borderColor: "#fff", borderWidth: 1, borderRadius: 5, paddingHorizontal: 10, color: "#fff", marginTop: 10 }}
+              placeholder="Description"
+              placeholderTextColor="#808080"
+              onChangeText={(text: string) => setNewPlaylistDescription(text)}
+            />
+            <TouchableOpacity
+              onPress={() => createPlaylist()}
+              style={{ backgroundColor: "#4CAF50", padding: 10, borderRadius: 5, alignItems: "center", marginTop: 20 }}>
+              <Text style={{ color: "#fff" }}>Create</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setNewPlaylistModalVisible(false)}
+              style={{ backgroundColor: "#f05858", padding: 10, borderRadius: 5, alignItems: "center", marginTop: 20 }}>
+              <Text style={{ color: "#fff" }}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {(newPlaylistLoading) && (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#f05858" />
+        </View>
+      )}
+
+      {(newPlaylistResult !== "") && (
+        <View style={styles.loaderContainer}>
+          <Text style={styles.error}>{newPlaylistResult}</Text>
+          <TouchableOpacity
+            onPress={() => setNewPlaylistResult("")}
+            style={{ backgroundColor: "#f05858", padding: 10, borderRadius: 5, alignItems: "center", marginTop: 10 }}>
+            <Text style={{ color: "#fff" }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -407,6 +537,13 @@ const styles = StyleSheet.create({
   },
   error: {
     color: 'red',
+    textAlign: 'center',
+    marginTop: 50,
+    width: '100%',
+    height: '100%',
+  },
+  success: {
+    color: 'green',
     textAlign: 'center',
     marginTop: 50,
     width: '100%',

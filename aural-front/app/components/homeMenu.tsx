@@ -289,7 +289,7 @@ const HomeMenu = () => {
 
       <View key={item.id} style={{ display: "flex", flexDirection: "column", justifyContent: "center", margin: 10 }}>
         <Image
-          source={{ uri: item.images && item.images.length > 0 ? item.images[0].url : "https://via.placeholder.com/160" }}
+          source={{ uri: item.images && item.images.length > 0 ? item.images[0].url : "https://community.mp3tag.de/uploads/default/original/2X/a/acf3edeb055e7b77114f9e393d1edeeda37e50c9.png" }}
           style={{
             width: 160,
             height: 160,

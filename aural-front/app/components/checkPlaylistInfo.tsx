@@ -10,8 +10,10 @@ import {
     Alert,
     StyleSheet,
     Dimensions,
+    Modal,
+    TextInput,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, SimpleLineIcons } from '@expo/vector-icons';
 import { useToken } from '../context/TokenContext';
 import { useNavigation } from 'expo-router';
 import { usePlayContent } from './WebPlayback';
@@ -29,6 +31,7 @@ interface PlaylistDetail {
     name: string;
     description: string | null;
     num_tracks: number;
+    public: boolean;
     images: {
         url: string;
     }[];
@@ -96,7 +99,7 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
         (async () => {
             try {
                 // fetch
-                const playlistRes = await fetch(`https://api.spotify.com/v1/playlists/${id}?fields=description,id,images,name,owner,tracks`, {
+                const playlistRes = await fetch(`https://api.spotify.com/v1/playlists/${id}`, {
                     method: "GET",
                     headers: {
                         Authorization: `Bearer ${token.access_token}`,
@@ -112,11 +115,14 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
 
                 const playlistData = await playlistRes.json();
 
+                console.log(playlistData);
+
                 const pl: PlaylistDetail = {
                     id: playlistData.id,
                     name: playlistData.name,
                     description: playlistData.description,
                     num_tracks: playlistData.tracks.total,
+                    public: playlistData.public,
                     images: playlistData.images,
                     owner: {
                         name: playlistData.owner.display_name,
@@ -277,15 +283,203 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
         }
     };
 
+    //// Actions
+
+    const [showActions, setShowActions] = useState(false);
+    const [newName, setNewName] = useState(playlist?.name);
+    const [newDescription, setNewDescription] = useState(playlist?.description);
+    const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+    useEffect(() => {
+        if (showActions && playlist) {
+            setNewName(playlist.name);
+            setNewDescription(playlist.description || '');
+        }
+    }, [showActions, playlist]);
+
+    const handleEditPlaylist = async () => {
+        if (!id || !token?.access_token) return;
+
+        try {
+            const resEdit = await fetch(`https://api.spotify.com/v1/playlists/${playlist!.id}`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token.access_token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    name: newName,
+                    description: newDescription,
+                })
+            });
+
+            if (!resEdit.ok) {
+                throw new Error('Spotify API error: ' + `${resEdit.status} ${resEdit.statusText}`);
+            }
+
+            setNewName(playlist?.name);
+            setNewDescription(playlist?.description);
+            setPlaylist(
+                {
+                    name: newName,
+                    description: newDescription,
+                    id: playlist!.id,
+                    num_tracks: playlist!.num_tracks,
+                    public: playlist!.public,
+                    images: playlist!.images,
+                    owner: playlist!.owner,
+                } as PlaylistDetail
+            );
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setShowActions(false);
+            setDeleteConfirm(false);
+            console.log('Playlist edited');
+        }
+    };
+    const handleDeletePlaylist = async () => {
+        if (!id || !token?.access_token) return;
+
+        try {
+            const resDelete = await fetch(`https://api.spotify.com/v1/playlists/${playlist!.id}/followers`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token.access_token}`,
+                    "Content-Type": "application/json",
+                }
+            });
+
+            if (!resDelete.ok) {
+                throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setShowActions(false);
+            setDeleteConfirm(false);
+            console.log('Playlist deleted');
+            onBack();
+        }
+    };
+
+
+    //// Long press on song action
+    const [showSongActions, setShowSongActions] = useState(false);
+    const [selectedSong, setSelectedSong] = useState<Track | null>(null);
+    const [isSelectedSongSaved, setIsSelectedSongSaved] = useState(false);
+    const handleSongLongPress = (song: Track) => {
+        setSelectedSong(song);
+        getSavedStatus();
+        setShowSongActions(true);
+    };
+
+    const handleDeleteSong = async (songId: string) => {
+        if (!id || !token?.access_token) return;
+
+        try {
+            const resDelete = await fetch(`https://api.spotify.com/v1/playlists/${playlist!.id}/tracks`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token.access_token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tracks: [{ uri: `spotify:track:${songId}` }]
+                })
+            });
+
+            if (!resDelete.ok) {
+                throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+            }
+
+            // Remove the song from the local state
+            setTracks((prevTracks) => prevTracks.filter((track) => track.id !== songId));
+            setSelectedSong(null);
+            console.log('Song removed from playlist');
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setShowSongActions(false);
+        }
+    };
+
+    const getSavedStatus = async () => {
+        if (!selectedSong || !token?.access_token) return;
+        try {
+            const res = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${selectedSong.id}`, {
+                headers: {
+                    Authorization: `Bearer ${token.access_token}`,
+                }
+            });
+            if (!res.ok) throw new Error();
+            const sav = await res.json();
+            setIsSelectedSongSaved(sav[0]);
+        } catch (e) {
+            console.error('Error fetching selected track\'s saved status:', e);
+            setSaved(false);
+        }
+    };
+
+    const handleSaveTrack = async () => {
+        if (!selectedSong || !token?.access_token) return;
+
+        if (!isSelectedSongSaved) /* Not saved -> save */ {
+            try {
+                const resSave = await fetch(`https://api.spotify.com/v1/me/tracks`, {
+                    method: "PUT",
+                    headers: {
+                        Authorization: `Bearer ${token.access_token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ ids: [selectedSong.id] }),
+                });
+
+                if (!resSave.ok) {
+                    throw new Error('Spotify API error: ' + `${resSave.status} ${resSave.statusText}`);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSelectedSongSaved(true);
+                console.log('Track saved to library');
+            }
+        } else /* Saved -> remove */ {
+            try {
+                const resDelete = await fetch(`https://api.spotify.com/v1/me/tracks`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token.access_token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ ids: [selectedSong.id] }),
+                });
+
+                if (!resDelete.ok) {
+                    throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSelectedSongSaved(false);
+                console.log('Track removed from library');
+            }
+        }
+    };
+
+
     const renderSong = ({ item }: { item: Track }) => (
         <TouchableOpacity
             style={styles.songItem}
-            onPress={() => playContent(token?.access_token, 'playlist', playlist!.id, item.number + item.offset)}>
+            onPress={() => playContent(token?.access_token, 'playlist', playlist!.id, item.number + item.offset)}
+            onLongPress={() => handleSongLongPress(item)}
+            delayLongPress={500}
+        >
 
             <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', columnGap: 10 }}>
                 <Image
                     style={{ width: 50, height: 50, borderRadius: 4, marginBottom: 'auto' }}
-                    source={{ uri: item.album.images[0]?.url }}
+                    source={{ uri: item.album.images[0] ? item.album.images[0].url : 'https://community.mp3tag.de/uploads/default/original/2X/a/acf3edeb055e7b77114f9e393d1edeeda37e50c9.png' }}
                 />
                 <View style={{}}>
                     <Text style={styles.songText}>{item.name}</Text>
@@ -339,9 +533,9 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
             {/* Header */}
 
             <View style={styles.header}>
-                {playlist?.images[0]?.url ?
+                {playlist?.images ?
                     <Image style={styles.image} source={{ uri: playlist?.images[0].url }} /> :
-                    <Text style={styles.noImg}>No image</Text>
+                    <Image style={styles.image} source={{ uri: "https://community.mp3tag.de/uploads/default/original/2X/a/acf3edeb055e7b77114f9e393d1edeeda37e50c9.png" }} />
                 }
                 <View style={styles.info}>
                     <Text style={styles.name}>{playlist?.name}</Text>
@@ -362,6 +556,11 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
                         }}>
                             <MaterialIcons name="share" size={24} color="#f05858" />
                         </TouchableOpacity>
+                        {(saved === 'own') && (
+                            <TouchableOpacity onPress={() => setShowActions(true)}>
+                                <SimpleLineIcons name="options" size={24} color="#f05858" />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </View>
@@ -377,6 +576,119 @@ const PlaylistInfo: React.FC<PlaylistInfoProps> = ({ id, name, onBack }) => {
                 </View>
                 <FlatList data={tracks} renderItem={renderSong} keyExtractor={i => i.id} />
             </View>
+
+            {/* Actions */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showActions}
+                onRequestClose={() => {
+                    setShowActions(!showActions);
+                }}
+            >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
+                    <View style={{ width: '80%', backgroundColor: '#1A1A1A', borderRadius: 10, padding: 20 }}>
+                        <Text style={{ color: '#fff', fontSize: 20, marginBottom: 20 }}>Edit playlist</Text>
+                        <TextInput
+                            style={{ height: 40, borderColor: '#f05858', borderWidth: 1, borderRadius: 10, marginBottom: 20, color: '#fff', paddingHorizontal: 10 }}
+                            editable={true}
+                            placeholder="Playlist name"
+                            placeholderTextColor="#bbb"
+                            onChangeText={(text) => setNewName(text)}
+                            value={newName}
+                        />
+                        <TextInput
+                            style={{ height: 40, borderColor: '#f05858', borderWidth: 1, borderRadius: 10, marginBottom: 20, color: '#fff', paddingHorizontal: 10 }}
+                            editable={true}
+                            placeholder="Playlist description"
+                            placeholderTextColor="#bbb"
+                            onChangeText={(text) => setNewDescription(text)}
+                            value={newDescription || ''}
+                        />
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#4CAF50', padding: 10, borderRadius: 5, alignItems: 'center' }}
+                            onPress={() => {
+                                handleEditPlaylist();
+                                setShowActions(false);
+                                setDeleteConfirm(false);
+                            }}>
+                            <Text style={{ color: '#fff', fontSize: 16 }}>Save changes</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#f05858', padding: 10, borderRadius: 5, alignItems: 'center', marginTop: 10 }}
+                            onPress={() => {
+                                if (deleteConfirm) {
+                                    handleDeletePlaylist();
+                                    setShowActions(false);
+                                } else {
+                                    setDeleteConfirm(true);
+                                }
+                            }}>
+                            <Text style={
+                                !deleteConfirm ? { color: '#fff', fontSize: 16 } : { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+                            }>{
+                                    !deleteConfirm ? 'Delete playlist' : 'Confirm delete'
+                                }</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ backgroundColor: 'gray', padding: 10, borderRadius: 5, alignItems: 'center', marginTop: 10 }}
+                            onPress={() => { setShowActions(false); setDeleteConfirm(false); }}>
+                            <Text style={{ color: '#fff', fontSize: 16 }}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Song actions */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={showSongActions}
+                onRequestClose={() => {
+                    setShowSongActions(false);
+                }}
+            >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.8)' }}>
+                    <View style={{ width: '80%', backgroundColor: '#1A1A1A', borderRadius: 10, padding: 20 }}>
+                        <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', columnGap: 10 }}>
+                            <Image
+                                style={{ width: 50, height: 50, borderRadius: 4, marginBottom: 'auto' }}
+                                source={{ uri: selectedSong?.album.images ? selectedSong?.album.images[0].url : 'https://community.mp3tag.de/uploads/default/original/2X/a/acf3edeb055e7b77114f9e393d1edeeda37e50c9.png' }}
+                            />
+                            <View style={{}}>
+                                <Text style={styles.songText}>{selectedSong?.name}</Text>
+                                {selectedSong?.artists.map((artist, i) => (
+                                    <Text key={artist.id} style={styles.songArtist}>
+                                        <TouchableOpacity onPress={() => { }}>
+                                            <Text style={{ color: '#f05858' }}>{artist.name}</Text>
+                                        </TouchableOpacity>{i < selectedSong?.artists.length - 1 ? ', ' : ''}
+                                    </Text>
+                                ))}
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={{ backgroundColor: isSelectedSongSaved ? '#f05858' : '#4CAF50', padding: 10, borderRadius: 5, alignItems: 'center', marginTop: 10 }}
+                            onPress={() => handleSaveTrack()}>
+                            <Text style={{ color: '#fff', fontSize: 16 }}>{
+                                isSelectedSongSaved ? 'Remove from library' : 'Save to library'
+                            }</Text>
+                        </TouchableOpacity>
+                        {(saved === 'own') && (
+                            <TouchableOpacity
+                                style={{ backgroundColor: '#f05858', padding: 10, borderRadius: 5, alignItems: 'center', marginTop: 10 }}
+                                onPress={() => handleDeleteSong(selectedSong!.id)}>
+                                <Text style={{ color: '#fff', fontSize: 16 }}>Remove from playlist</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            style={{ backgroundColor: 'gray', padding: 10, borderRadius: 5, alignItems: 'center', marginTop: 10 }}
+                            onPress={() => { setShowSongActions(false); setSelectedSong(null); }}>
+                            <Text style={{ color: '#fff', fontSize: 16 }}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
 
         </ScrollView>
