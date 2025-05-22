@@ -76,13 +76,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="sessions"
+        name="RadioTab"
         options={{
           title: "",
           tabBarIcon: ({ focused }) => (
             <View style={styles.iconContainer}>
               <MaterialIcons name="people" size={30} color={focused ? "rgb(240, 88, 88)" : "#9A9A9A"} />
-              <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>Sessions</Text>
+              <Text style={focused ? styles.footerButtonSelected : styles.footerButton}>Radios</Text>
             </View>
           ),
         }}

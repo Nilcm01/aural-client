@@ -11,6 +11,8 @@ import {
 import { useToken } from "../context/TokenContext";
 import { useRadio, RadioInfo } from "../utils/useRadio";
 import RadioRoomModal from "../components/RadioRoomModal";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
 export default function RadioTab() {
   const { token } = useToken();
@@ -50,6 +52,44 @@ export default function RadioTab() {
 
   return (
     <View style={styles.container}>
+
+      <View style={{
+        height: 80, backgroundColor: "#262626",
+        alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
+      }}>
+        {/* To be later replaced dynamic title */}
+        <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}> Home </Text>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
+            {token ? `${token.user_id}` : "No Token"}
+          </Text>
+          <MaterialIcons
+            name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
+            size={30}
+            color="white"
+            onPress={() => {
+              if (token) {
+                router.push("/profileScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
+          />
+          <Ionicons
+            name="people-circle-outline"
+            size={30}
+            color="white"
+            onPress={() => {
+              if (token) {
+                router.push("/FriendsScreen");
+              } else {
+                router.push("/loginScreen"); // Navigate to login screen
+              }
+            }}
+          />
+        </View>
+      </View>
+
       <TouchableOpacity style={styles.createBtn} onPress={onCreate}>
         <Text style={styles.createText}>+ Nueva Radio</Text>
       </TouchableOpacity>
@@ -97,13 +137,19 @@ export default function RadioTab() {
 
 const { width } = Dimensions.get("window");
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#121212", padding: 16 },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#121212", 
+    padding: 0
+  },
   listContent: { paddingBottom: 32 },
   createBtn: {
     backgroundColor: "#F05858",
     paddingVertical: 14,
     borderRadius: 8,
+    marginTop: 90,
     marginBottom: 16,
+    marginHorizontal: 16,
     alignItems: "center",
   },
   createText: { color: "white", fontWeight: "bold", fontSize: 16 },
