@@ -25,6 +25,8 @@ interface RankingModalProps {
   onClose: () => void;
 }
 
+const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
+
 const RankingModal: React.FC<RankingModalProps> = ({
   token,
   visible,
@@ -82,9 +84,9 @@ const RankingModal: React.FC<RankingModalProps> = ({
       const headers = { Authorization: `Bearer ${token}` };
 
       const endpoints = [
-        `http://localhost:5000/api/items/top-rated-entities?entityType=${entityType}`,
-        `http://localhost:5000/api/items/top-weighted-entities?entityType=${entityType}`,
-        `http://localhost:5000/api/items/most-rated-entities?entityType=${entityType}`,
+        `${API_URL}top-rated-entities?entityType=${entityType}`,
+        `${API_URL}top-weighted-entities?entityType=${entityType}`,
+        `${API_URL}most-rated-entities?entityType=${entityType}`,
       ];
 
       const [resTop, resWeighted, resMost] = await Promise.all(
@@ -190,6 +192,7 @@ const RankingModal: React.FC<RankingModalProps> = ({
               data={[]}
               renderItem={null}
               keyExtractor={(_, index) => `header-${index}`}
+              showsVerticalScrollIndicator={false}
             />
           )}
         </View>
