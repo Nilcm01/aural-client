@@ -18,11 +18,12 @@ import { MaterialIcons, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useToken } from "../context/TokenContext";
 import QueueModal from "../components/QueueModal";
+import RankingModal from "../components/RankingModal";
 import { useQueue } from "../context/QueueContext";
 import HistoryContainer from "../components/historyContainer";
 import { router, useFocusEffect } from "expo-router";
 import { useReproBarVisibility } from "./WebPlayback";
-
+import { Star } from 'lucide-react';
 
 interface UserMatch {
   target: string;
@@ -66,6 +67,7 @@ const SearchScreen: React.FC = () => {
   const [artistLimit, setArtistLimit] = useState(5);
 
   const [queueModalVisible, setQueueModalVisible] = useState(false);
+  const [rankingModalVisible, setRankingModalVisible] = useState(false);
 
   // Sincronizar cola Spotify
   useEffect(() => {
@@ -457,6 +459,19 @@ const SearchScreen: React.FC = () => {
         onSkip={() => Alert.alert("Skip")}
       />
 
+      <TouchableOpacity
+        style={styles.openRankingButton}
+        onPress={() => setRankingModalVisible(true)}
+      >
+        <Star size={30} color="white"  />
+      </TouchableOpacity>
+      <RankingModal
+        token={token?.access_token || null}
+        visible={rankingModalVisible}
+        entityType={"song"}
+        onClose={() => setRankingModalVisible(false)}
+      />
+
       {/* Filters modal */}
       <Modal visible={filtersVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -565,6 +580,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 140,
     right: 20
+  },
+  openRankingButton: {
+    backgroundColor: "#F05858",
+    padding: 17,
+    borderRadius: 40,
+    margin: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    bottom: 140,
+    left: 20
   },
   modalOverlay: {
     flex: 1,
