@@ -20,6 +20,7 @@ import QueueModal from './QueueModal';
 import { useToken } from "./../context/TokenContext";
 import { useSharing } from './../context/SharingContext';
 import { useNavigation } from 'expo-router';
+import { useQueue } from '../context/QueueContext';
 
 export interface TrackInfo {
   id: string;
@@ -78,7 +79,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const [historyAdded, setHistoryAdded] = useState(false);
   const [showOtherActionsModal, setShowOtherActionsModal] = useState(false);
 
-  
+
   const addToHistory = async () => {
     // Verificar que tengamos todos los datos necesarios
     if (!track || !userId || !duration) {
@@ -94,7 +95,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
     try {
       console.log("Adding to history:", track.name);
-      const response = await fetch(`http://localhost:5000/api/items/add-history`, {
+      const response = await fetch(`${API_URL}add-history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +135,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       const timer = setTimeout(() => {
         addToHistory();
       }, 2000); // 2 segundos de delay para evitar registros erróneos
-      
+
       return () => clearTimeout(timer);
     }
   }, [track?.id]);
@@ -157,10 +158,38 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
   //console.log("ReproductionModal rendered, visible:", visible);
   const [queueVisible, setQueueVisible] = useState(false);
+  const { removeFromQueue, clearQueue, updateQueue } = useQueue();
 
   const openQueueModal = () => {
     setQueueVisible(true);
   };
+
+  // Update the queue when the modal is opened
+  useEffect(() => {
+    if (!token?.access_token) return;
+    const fetchQueue = async () => {
+      try {
+        const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
+          headers: { Authorization: `Bearer ${token.access_token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.queue) {
+          updateQueue(
+            data.queue.map((t: any) => ({
+              id: t.id,
+              image: t.album?.images?.[0]?.url ?? "",
+              name: t.name,
+              uri: t.uri,
+            }))
+          );
+        }
+      } catch { }
+    };
+    fetchQueue();
+    const iv = setInterval(fetchQueue, 10000);
+    return () => clearInterval(iv);
+  }, [queueVisible]);
 
   // Helper function to format milliseconds to mm:ss
   const formatTime = (milliseconds: number): string => {
@@ -341,7 +370,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       );
       if (!saveRes.ok) {
         const errorText = await saveRes.text();
-        throw new Error(`Error guardando letra: ${saveRes.status} – ${errorText}`);
+        throw new Error(`Error guardando letra: ${saveRes.status} - ${errorText}`);
       }
 
     } catch (err: any) {
@@ -370,12 +399,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
   const [recentComments, setRecentComments] = useState<Comment[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [showHateSpeechModal, setShowHateSpeechModal] = useState(false);
+  const [loadingCommentOrRating, setLoadingCommentOrRating] = useState(false);
 
   // useEffect to load past ratings and comments
   useEffect(() => {
     const getRating = async () => {
       if (track && token) {
         try {
+          setLoadingCommentOrRating(true);
           const response = await fetch(`${API_URL}punctuations-by-entity?entityId=${track.id}&entityType=song`);
 
           if (response.status === 200) {
@@ -390,12 +421,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         } catch (error) {
           console.error("Error fetching rating:", error);
         }
+        setLoadingCommentOrRating(false);
       }
-    };  
+    };
 
     const getRecentComments = async () => {
       if (track && token) {
         try {
+          setLoadingCommentOrRating(true);
           const response = await fetch(`${API_URL}comments-by-entity?contentId=${track.id}&entityType=song`);
           const result = await response.json();
 
@@ -410,18 +443,20 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
         } catch (error) {
           console.error("Error fetching recent comments:", error);
         }
+        setLoadingCommentOrRating(false);
       }
     };
 
     getRating();
     getRecentComments();
-  }, [token, track]);
+  }, [showComsAndRatingModal]);
 
   // Function to handle the submission of a star rating
   const handleRateSubmit = async () => {
     // Checking that there's a rating
     if (rating > 0) {
       try {
+        setLoadingCommentOrRating(true);
         // API call in order to do a rating
         const response = await fetch(API_URL + 'create-punctuation', {
           method: 'POST',
@@ -455,12 +490,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       console.log("No rating selected");
       setErrorMessage("Please select a rating before submitting.");
     }
+    setLoadingCommentOrRating(false);
   };
 
   // Function to handle the submission of a comment 
   const handleCommentSubmit = async () => {
     // Checking that there's a comment
     if (comment.trim()) {
+      setLoadingCommentOrRating(true);
       try {
         // API call in order to do a comment
         const response = await fetch(API_URL + 'create-comment', {
@@ -499,12 +536,192 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
           setErrorMessage(''); // Clear error after modal closes
         }, 3000);
       }
+      setLoadingCommentOrRating(false);
     } else {
       console.log("No comment entered");
       setErrorMessage("Please write a comment before submitting.");
     }
   };
 
+
+  //// Handle save-to/erase-from library
+  const [saved, setSaved] = useState(false);
+
+  // Get saved status
+  useEffect(() => {
+    if (!token?.access_token || !track.id) return;
+    (async () => {
+      try {
+        const res = await fetch(`https://api.spotify.com/v1/me/tracks/contains?ids=${track.id}`, {
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+          }
+        });
+        if (!res.ok) throw new Error();
+        const sav = await res.json();
+        console.log('Track saved:', sav);
+        setSaved(sav[0]);
+      } catch (e) {
+        console.error('Error fetching current track\'s saved status:', e);
+        setSaved(false);
+      }
+    })();
+  }, [track.id, token, visible]);
+
+  // Save or remove from library
+  const handleSaveTrack = async () => {
+    if (!track.id || !token?.access_token) return;
+
+    if (!saved) /* Not saved -> save */ {
+      try {
+        const resSave = await fetch(`https://api.spotify.com/v1/me/tracks`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [track.id] }),
+        });
+
+        if (!resSave.ok) {
+          throw new Error('Spotify API error: ' + `${resSave.status} ${resSave.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(true);
+        console.log('Track saved to library');
+      }
+    } else /* Saved -> remove */ {
+      try {
+        const resDelete = await fetch(`https://api.spotify.com/v1/me/tracks`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [track.id] }),
+        });
+
+        if (!resDelete.ok) {
+          throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(false);
+        console.log('Track removed from library');
+      }
+    }
+  };
+
+
+  //// Handle add to playlist
+  interface Playlist {
+    id: string;
+    name: string;
+    owner: {
+      name: string;
+      id: string;
+    };
+  };
+  const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+
+  // Fetch playlists
+  useEffect(() => {
+    if (!token?.access_token) return;
+
+    const fetchPlaylists = async () => {
+      setPlaylists([]);
+      try {
+        let offset = 0;
+        let hasMorePlaylists = true;
+
+        while (hasMorePlaylists) {
+          // fetch
+          console.log(`Fetching playlists from ${offset} to ${offset + 50}`);
+          const playlistsRes = await fetch(`https://api.spotify.com/v1/me/playlists?limit=50&offset=${offset}`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token.access_token}`,
+              "Content-Type": "application/json",
+            }
+          });
+
+          // check for error in return
+          if (!playlistsRes.ok) {
+            throw new Error('Spotify API error: ' + `${playlistsRes.status} ${playlistsRes.statusText}`);
+          }
+
+          const playlistsData = await playlistsRes.json();
+          console.log(playlistsData);
+
+          const al: Playlist[] = playlistsData.items.map((item: any, i: number) => ({
+            id: item.id,
+            name: item.name,
+            owner: {
+              name: item.owner.display_name,
+              id: item.owner.id,
+            },
+          }));
+
+          setPlaylists((prev) => [...prev, ...al]);
+
+          // Check if there are more tracks to fetch
+          if (playlistsData.next) {
+            offset += 50;
+          } else {
+            hasMorePlaylists = false;
+          }
+        }
+      } catch (e) {
+        console.error(`Error fetching playlists: ${e}`);
+      } finally {
+        // Only keep playlists from the current user
+        setPlaylists((prev) => prev.filter((pl) => pl.owner.id === token?.user_id));
+        // Order the playlists by name
+        setPlaylists((prev) => prev.sort((a, b) => a.name.localeCompare(b.name)));
+      }
+    };
+
+    if (playlistModalVisible) {
+      fetchPlaylists();
+    }
+  }, [playlistModalVisible]);
+
+  const addSongToPlaylist = async (playlistId: string) => {
+    if (!track.id || !token?.access_token) return;
+    try {
+      const res = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uris: [track.uri] }),
+      });
+      if (!res.ok) throw new Error('Failed to add track to playlist');
+      console.log('Track added to playlist successfully');
+    } catch (error) {
+      console.error('Error adding track to playlist:', error);
+    }
+  };
+
+  const renderPlaylistToHaveSongAdded = ({ pl }: { pl: Playlist }) => {
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          addSongToPlaylist(pl.id);
+          setPlaylistModalVisible(false);
+        }}
+        style={[styles.otherActionsList, {alignItems: 'flex-start'}]}
+
+      >
+        <Text style={{ color: 'white', fontSize: 18 }}>{pl.name}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View>
@@ -531,8 +748,12 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
                 <View key={track.id} style={{ alignItems: 'center', margin: 10 }}>
                   <Image source={{ uri: track.image }} style={styles.cover} />
                   <View style={styles.actions}>
-                    <TouchableOpacity onPress={() => {/* Add to library */ }}>
-                      <MaterialIcons name="add-circle-outline" size={40} color="white" />
+                    <TouchableOpacity onPress={() => { handleSaveTrack(); }}>
+                      <MaterialIcons name={
+                        saved ? 'check-circle' : 'add-circle-outline'
+                      } size={40} color={
+                        saved ? "#f05858" : "white"
+                      } />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={showLyrics}>
                       <MaterialIcons name="text-fields" size={40} color="white" />
@@ -571,7 +792,7 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <TouchableOpacity onPress={() => player?.togglePlay()}>
                 {isPaused ?
                   <MaterialIcons name="play-circle-outline" size={100} color="white" /> :
-                  <MaterialIcons name="pause-circle-outline" size={100} color="white" />}
+                  <MaterialIcons name="pause-circle-outline" size={100} color="#f05858" />}
               </TouchableOpacity>
 
               <TouchableOpacity onPress={() => player?.nextTrack()}>
@@ -664,6 +885,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
       {showComsAndRatingModal && (
         <Modal visible={showComsAndRatingModal} transparent animationType="slide" onRequestClose={() => setShowComsAndRatingModal(false)}>
           <View style={styles.modalOverlay}>
+
+            {/* Loading indicator */}
+            {loadingCommentOrRating && (
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1 }}>
+                <ActivityIndicator size="large" color="#f05858" />
+              </View>
+            )}
+
             <View style={styles.modalContent}>
               <Text style={styles.title}>Ratings and Comments</Text>
 
@@ -756,16 +985,14 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
 
               <Text style={styles.title}>Actions</Text>
 
-              <TouchableOpacity onPress={() => {/* Add to library */ }} style={styles.otherActionsList}>
-                <Text style={{ color: 'white', fontSize: 18 }}>Add to Library</Text>
+              <TouchableOpacity onPress={() => { handleSaveTrack(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>{
+                  saved ? 'Remove from library' : 'Save to library'
+                }</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity onPress={() => {/* Add to playlist */ }} style={styles.otherActionsList}>
-                <Text style={{ color: 'white', fontSize: 18 }}>Add to Playlist</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => {/* Start session */ }} style={styles.otherActionsList}>
-                <Text style={{ color: 'white', fontSize: 18 }}>Start a Session</Text>
+              <TouchableOpacity onPress={async () => { setPlaylistModalVisible(true); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
+                <Text style={{ color: 'white', fontSize: 18 }}>Add to playlist</Text>
               </TouchableOpacity>
 
               <TouchableOpacity onPress={async () => { goToAlbum(); }} style={styles.otherActionsList}>
@@ -787,6 +1014,35 @@ const ReproductionModal: React.FC<ReproductionModalProps> = ({
               <TouchableOpacity onPress={() => { shareArtistLink(); setShowOtherActionsModal(false); }} style={styles.otherActionsList}>
                 <Text style={{ color: 'white', fontSize: 18 }}>Copy this song's artist link</Text>
               </TouchableOpacity>
+
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Add song to playlist */}
+      {playlistModalVisible && (
+        <Modal visible={playlistModalVisible} transparent animationType="slide" onRequestClose={() => setPlaylistModalVisible(false)}>
+          <View style={styles.otherActionsModalOverlay}>
+            <View style={styles.otherActionsModalContent}>
+
+              {/* Close button */}
+              <View style={styles.otherActionsCloseButton}>
+                <TouchableOpacity onPress={() => setPlaylistModalVisible(false)}>
+                  <MaterialIcons name="close" size={30} color="#f05858" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.title}>Add to playlist</Text>
+
+              <FlatList
+                data={playlists}
+                renderItem={({ item }) => renderPlaylistToHaveSongAdded({ pl: item })}
+                keyExtractor={(item) => item.id}
+                style={{ width: '100%', padding: 10 }}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              />
 
             </View>
           </View>
@@ -1033,8 +1289,8 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
   },
-  lyricsText: { 
-    color: 'white', 
+  lyricsText: {
+    color: 'white',
     lineHeight: 22,
     fontSize: 18,
     textAlign: 'center',

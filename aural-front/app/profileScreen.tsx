@@ -11,7 +11,7 @@ const API_URL = 'https://aural-454910.ew.r.appspot.com/api/items/';
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const { token } = useToken();
+  const { token, logout } = useToken();
   const { showReproBar } = useReproBarVisibility();
   useFocusEffect(() => {
         showReproBar(false);
@@ -320,6 +320,9 @@ const ProfileScreen = () => {
             <TouchableOpacity style={styles.menuItem} onPress={openStatsModal}>
               <Text style={styles.menuText}>Stats</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={ () => { logout(); closeOptionsMenu(); } }>
+              <Text style={[styles.menuText, {color: "#F05858"}]}>Sign out</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -361,6 +364,7 @@ const ProfileScreen = () => {
                 renderItem={renderHistoryItem}
                 keyExtractor={(item, index) => `${item.songId}-${index}`}
                 contentContainerStyle={historyStyles.listContent}
+                showsVerticalScrollIndicator={false}
               />
             )}
           </View>
@@ -464,6 +468,7 @@ const ProfileScreen = () => {
                     )}
                   </View>
                 )}
+                showsVerticalScrollIndicator={false}
               />
             ) : (
               <Text style={statsStyles.stat}>No statistics available.</Text>

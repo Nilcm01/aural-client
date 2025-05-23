@@ -2,17 +2,31 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, Image, FlatList, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert
+  ScrollView, ActivityIndicator, Alert,
+  Dimensions
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useToken } from '../context/TokenContext';
 import { usePlayContent, useReproBarVisibility } from './WebPlayback';
 import { router } from 'expo-router';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { useSharing } from '../context/SharingContext';
 
 interface RouteParams { id: string; name: string }
-interface AlbumDetail { id: string, images: { url: string }[]; artists: { name: string, id: string }[]; release_date: string, album_type: string }
-interface Track { id: string; name: string, track_number: number }
+interface AlbumDetail {
+  id: string,
+  images: {
+    url: string
+  }[];
+  artists: {
+    name: string,
+    id: string
+  }[];
+  release_date: string,
+  album_type: string
+}
+interface Track { id: string; name: string, track_number: number, duration_ms: number }
 
 const AlbumInfo: React.FC = () => {
   const { showReproBar } = useReproBarVisibility();
@@ -21,44 +35,121 @@ const AlbumInfo: React.FC = () => {
   const { id, name } = route.params as RouteParams;
   const { token } = useToken();
   const { playContent } = usePlayContent();
+  const { linkCreate } = useSharing();
 
   const [album, setAlbum] = useState<AlbumDetail | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!id || !token?.access_token) return;
     setLoading(true);
     (async () => {
       try {
-        const [rAlb, rTr] = await Promise.all([
+        const [rAlb, rTr, rSav] = await Promise.all([
           fetch(`https://api.spotify.com/v1/albums/${id}`, { headers: { Authorization: `Bearer ${token.access_token}` } }),
-          fetch(`https://api.spotify.com/v1/albums/${id}/tracks`, { headers: { Authorization: `Bearer ${token.access_token}` } })
+          fetch(`https://api.spotify.com/v1/albums/${id}/tracks`, { headers: { Authorization: `Bearer ${token.access_token}` } }),
+          fetch(`https://api.spotify.com/v1/me/albums/contains?ids=${id}`, { headers: { Authorization: `Bearer ${token.access_token}` } })
         ]);
-        if (!rAlb.ok || !rTr.ok) throw new Error();
+        if (!rAlb.ok || !rTr.ok || !rSav.ok) throw new Error();
         const alb = await rAlb.json();
         const tr = await rTr.json();
+        const sav = await rSav.json();
+        console.log('Album saved:', sav);
         setAlbum(alb);
         setTracks(tr.items);
+        setSaved(sav[0]);
       } catch (e) {
         console.error(e);
-        Alert.alert('Error', 'No se cargó el álbum.');
+        Alert.alert('Error', 'Album could not be loaded.');
       } finally { setLoading(false); }
     })();
   }, [id, token]);
 
+  const handleSaveAlbum = async () => {
+    if (!id || !token?.access_token) return;
+
+    if (!saved) /* Not saved -> save */ {
+      try {
+        const resSave = await fetch(`https://api.spotify.com/v1/me/albums`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [id] }),
+        });
+
+        if (!resSave.ok) {
+          throw new Error('Spotify API error: ' + `${resSave.status} ${resSave.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(true);
+        console.log('Album saved to library');
+      }
+    } else /* Saved -> remove */ {
+      try {
+        const resDelete = await fetch(`https://api.spotify.com/v1/me/albums`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ ids: [id] }),
+        });
+
+        if (!resDelete.ok) {
+          throw new Error('Spotify API error: ' + `${resDelete.status} ${resDelete.statusText}`);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setSaved(false);
+        console.log('Album removed from library');
+      }
+    }
+  };
+
+  // Helper function to format milliseconds to mm:ss
+  const formatTime = (milliseconds: number): string => {
+    if (!milliseconds || isNaN(milliseconds)) return "0:00";
+
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
   if (loading) return <View style={s.loader}><ActivityIndicator size="large" color="#f05858" /></View>;
-  if (!album) return <View style={s.loader}><Text style={s.error}>Álbum no encontrado.</Text></View>;
+  if (!album) return <View style={s.loader}><Text style={s.error}>Album not found</Text></View>;
 
   const year = album.release_date.slice(0, 4);
   const renderSong = ({ item }: { item: Track }) => (
-    <TouchableOpacity style={s.songItem} onPress={() => playContent(token?.access_token, 'album', album.id, item.track_number-1)}>
-      <Text style={s.songText}>{item.name}</Text>
+    <TouchableOpacity
+      style={s.songItem}
+      onPress={() => playContent(token?.access_token, 'album', album.id, item.track_number - 1)}>
+
+      <View style={{}}>
+        <Text style={s.songText}>{item.name}</Text>
+      </View>
+
+      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+        <Text style={{ color: '#ffffff', fontSize: 16 }}>
+          {formatTime(item.duration_ms)}
+        </Text>
+      </View>
+
+
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView style={s.container}>
+    <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
       <TouchableOpacity style={s.back} onPress={() => {
         if (router.canGoBack()) {
           router.back();
@@ -91,6 +182,18 @@ const AlbumInfo: React.FC = () => {
             }
           </Text>
           <Text style={s.year}>{album.album_type.toLowerCase() + ' - ' + year}</Text>
+          <View style={{ flexDirection: 'row', marginTop: 10, justifyContent: 'flex-start', alignItems: 'center', gap: 40 }}>
+            <TouchableOpacity onPress={() => { handleSaveAlbum(); }}>
+              <MaterialIcons name={
+                saved ? 'check-circle' : 'add-circle-outline'
+              } size={32} color="#f05858" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => {
+              Clipboard.setString(linkCreate('album', album.id));
+            }}>
+              <MaterialIcons name="share" size={24} color="#f05858" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       <View style={s.list}>
@@ -107,7 +210,13 @@ const AlbumInfo: React.FC = () => {
 };
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', paddingHorizontal: 10, zIndex: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+    paddingHorizontal: 10,
+    zIndex: 20,
+    paddingBottom: 10,
+  },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: 'red' },
   back: { position: 'absolute', top: 5, left: 10, zIndex: 1 },
@@ -141,8 +250,23 @@ const s = StyleSheet.create({
     borderColor: '#f05858',
     borderWidth: 0.5
   },
-  songItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#333' },
-  songText: { color: '#fff' }
+  songItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    columnGap: 10
+  },
+  songText: {
+    color: '#fff',
+    fontSize: 18,
+    flexWrap: 'wrap',
+    maxWidth: Dimensions.get('window').width * 0.55,
+  }
+
 });
 
 export default AlbumInfo;

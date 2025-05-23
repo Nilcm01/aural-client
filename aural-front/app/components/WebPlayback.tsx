@@ -445,7 +445,7 @@ const WebPlayback: React.FC<Props> = ({ token }) => {
               {isPaused ? (
                 <MaterialIcons name="play-circle-outline" size={40} color="white" />
               ) : (
-                <MaterialIcons name="pause-circle-outline" size={40} color="white" />
+                <MaterialIcons name="pause-circle-outline" size={40} color="#f05858" />
               )}
             </TouchableOpacity>
           </View>

@@ -43,12 +43,6 @@ export default function AppBar() {
             }
           }}
         />
-        <MaterialIcons
-        name="close" // Show "person" if token exists, otherwise "login"
-        size={30}
-        color="white"
-        onPress={() => { logout(); }}
-      />
       </View>
     </View>
   );

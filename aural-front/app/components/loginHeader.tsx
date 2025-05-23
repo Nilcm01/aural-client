@@ -29,6 +29,7 @@ const LoginHeader = () => {
                   playlist-read-collaborative\
                   playlist-modify-public\
                   playlist-modify-private\
+                  ugc-image-upload\
                   \
                   user-library-read\
                   user-library-modify\
