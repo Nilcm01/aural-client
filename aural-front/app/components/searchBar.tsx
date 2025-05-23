@@ -23,6 +23,7 @@ import { useQueue } from "../context/QueueContext";
 import HistoryContainer from "../components/historyContainer";
 import { router, useFocusEffect } from "expo-router";
 import { useReproBarVisibility } from "./WebPlayback";
+import { useRadio } from "../utils/useRadio"; // ← Importamos useRadio
 import { Star } from 'lucide-react';
 
 interface UserMatch {
@@ -50,9 +51,15 @@ const SearchScreen: React.FC = () => {
   const { showReproBar } = useReproBarVisibility();
   useFocusEffect(() => {
     showReproBar(true);
-    return () => { };
+    return () => {};
   });
+
   const { queue, addToQueue, updateQueue, removeFromQueue, clearQueue } = useQueue();
+
+  // Extraemos del contexto de radio
+  const { current, changeSong, playRadio } = useRadio();
+  const radioId = current?.radioId;
+  const userId = token?.user_id;
 
   const [query, setQuery] = useState("");
   const [userResults, setUserResults] = useState<UserMatch[]>([]);
@@ -71,37 +78,53 @@ const SearchScreen: React.FC = () => {
 
   // Sincronizar cola Spotify
   useEffect(() => {
-    if (!token?.access_token) return;
-    const fetchQueue = async () => {
-      try {
-        const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
-          headers: { Authorization: `Bearer ${token.access_token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.queue) {
-          updateQueue(
-            data.queue.map((t: any) => ({
-              id: t.id,
-              image: t.album?.images?.[0]?.url ?? "",
-              name: t.name,
-              uri: t.uri,
-            }))
-          );
-        }
-      } catch { }
-    };
-    fetchQueue();
-    const iv = setInterval(fetchQueue, 10000);
-    return () => clearInterval(iv);
-  }, [token, updateQueue]);
+  if (!token?.access_token) return;
+  let intervalId: NodeJS.Timeout | null = null;
 
-  // Search users...
+  const fetchQueue = async () => {
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player/queue", {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      });
+
+      if (res.status === 429) {
+        // Too Many Requests: reajustamos según Retry-After (en segundos)
+        const retryAfterSec = parseInt(res.headers.get("Retry-After") || "100", 10);
+        if (intervalId) clearInterval(intervalId);
+        intervalId = setInterval(fetchQueue, retryAfterSec * 1000);
+        return;
+      }
+
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.queue) {
+        updateQueue(
+          data.queue.map((t: any) => ({
+            id: t.id,
+            image: t.album?.images?.[0]?.url ?? "",
+            name: t.name,
+            uri: t.uri,
+          }))
+        );
+      }
+    } catch (e) {
+      console.warn("[SearchScreen] fetchQueue error", e);
+    }
+  };
+
+  // Petición inicial y luego cada 60 s
+  fetchQueue();
+  intervalId = setInterval(fetchQueue, 60_000);
+
+  return () => {
+    if (intervalId) clearInterval(intervalId);
+  };
+}, [token?.access_token, updateQueue]);
+
+  // Fetch users para búsqueda social
   const fetchAllUsers = async () => {
     try {
-
       const r = await fetch(`${API_URL}users`);
-
       if (!r.ok) throw new Error();
       return await r.json();
     } catch {
@@ -116,11 +139,7 @@ const SearchScreen: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      const r = await fetch(
-        `${API_URL}search-user?username=${encodeURIComponent(
-          query
-        )}`
-      );
+      const r = await fetch(`${API_URL}search-user?username=${encodeURIComponent(query)}`);
       if (!r.ok) throw new Error();
       const data: Array<{ target: string; rating: number }> = await r.json();
       const all = await fetchAllUsers();
@@ -141,7 +160,7 @@ const SearchScreen: React.FC = () => {
     setLoading(false);
   };
 
-  // Search Spotify content...
+  // Búsqueda en Spotify
   const handleSearchContent = async () => {
     if (!query.trim()) {
       setAlbums([]);
@@ -157,9 +176,7 @@ const SearchScreen: React.FC = () => {
     setError("");
     try {
       const r = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-          query
-        )}&type=album,track,artist&limit=10`,
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album,track,artist&limit=10`,
         { headers: { Authorization: `Bearer ${token.access_token}` } }
       );
       if (!r.ok) throw new Error();
@@ -172,27 +189,24 @@ const SearchScreen: React.FC = () => {
     }
     setLoading(false);
   };
-
   const handleSearch = async () => {
     await handleSearchUsers();
     await handleSearchContent();
   };
 
-  const playTrack = async (uri?: string) => {
+  // Reproducir en tu player local (no bloqueante)
+  const playTrack = (uri?: string) => {
     if (!uri || !token?.access_token) return Alert.alert("Error", "No URI/token");
-    try {
-      await fetch("https://api.spotify.com/v1/me/player/play", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ uris: [uri] }),
-      });
-    } catch {
-      Alert.alert("Error", "Play failed");
-    }
+    fetch("https://api.spotify.com/v1/me/player/play", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ uris: [uri] }),
+    }).catch(() => Alert.alert("Error", "Play failed"));
   };
+
   const handleAddToQueue = async (uri?: string, track?: any) => {
     if (!uri || !token?.access_token) return Alert.alert("Error", "No URI/token");
     try {
@@ -211,9 +225,8 @@ const SearchScreen: React.FC = () => {
     }
   };
 
-  // Filter search
+  // Filtros UI
   const [filtersVisible, setFiltersVisible] = useState(false);
-  {/* Double factor to avoid fast rendering (before clickig Search button) */ }
   const [activeFilters, setActiveFilters] = useState({
     users: true,
     artists: true,
@@ -221,11 +234,11 @@ const SearchScreen: React.FC = () => {
     albums: true,
   });
   const [pendingFilters, setPendingFilters] = useState(activeFilters);
-
   const toggleFilter = (key: keyof typeof activeFilters) => {
     setActiveFilters((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Renderers...
   const renderUserItem = ({ item }: any) => (
     <View style={styles.resultItem}>
       <View style={styles.userInfo}>
@@ -241,30 +254,57 @@ const SearchScreen: React.FC = () => {
     <View style={styles.resultItem}>
       <TouchableOpacity
         onPress={() =>
-          navigation.navigate("checkAlbumInfo/[id]", {
-            id: item.id,
-            name: item.name,
-          })
+          navigation.navigate("checkAlbumInfo/[id]", { id: item.id, name: item.name })
         }
       >
-        <Image
-          source={{ uri: item.images?.[0]?.url ?? "" }}
-          style={styles.userImage}
-        />
+        <Image source={{ uri: item.images?.[0]?.url ?? "" }} style={styles.userImage} />
         <Text style={styles.username}>{item.name}</Text>
       </TouchableOpacity>
       <Text style={styles.contentType}>Album</Text>
+    </View>
+  );
+  const renderArtistItem = ({ item }: any) => (
+    <View style={styles.resultItem}>
+      <TouchableOpacity
+        onPress={() =>
+          navigation.navigate("checkArtistInfo/[id]", { id: item.id, name: item.name })
+        }
+      >
+        <Image source={{ uri: item.images?.[0]?.url ?? "" }} style={styles.userImage} />
+        <Text style={styles.username}>{item.name}</Text>
+      </TouchableOpacity>
+      <Text style={styles.contentType}>Artist</Text>
     </View>
   );
   const renderTrackItem = ({ item }: any) => {
     const img = item.album?.images?.[0]?.url ?? "";
     return (
       <View style={styles.resultItem}>
+        {/* Play local */}
         <TouchableOpacity onPress={() => playTrack(item.uri)}>
           <Image source={{ uri: img }} style={styles.userImage} />
           <Text style={styles.username}>{item.name}</Text>
         </TouchableOpacity>
         <Text style={styles.contentType}>Track</Text>
+
+        {/* ▶ Radio */}
+        <TouchableOpacity
+          style={[styles.friendRequestButton, !radioId && { opacity: 0.5 }]}
+          disabled={!radioId}
+          onPress={() => {
+            if (!radioId || !userId) return;
+            // 1. Inicializamos currentSong en servidor
+            changeSong(radioId, userId, { id: item.id, name: item.name });
+            // 2. Notificamos play en la radio
+            playRadio(radioId, userId);
+            // 3. Reproducimos localmente
+            playTrack(item.uri);
+          }}
+        >
+          <Text style={styles.buttonText}>▶ Radio</Text>
+        </TouchableOpacity>
+
+        {/* Add to queue */}
         <TouchableOpacity
           style={styles.friendRequestButton}
           onPress={() =>
@@ -281,48 +321,44 @@ const SearchScreen: React.FC = () => {
       </View>
     );
   };
-  const renderArtistItem = ({ item }: any) => (
-    <View style={styles.resultItem}>
-      <TouchableOpacity
-        onPress={() =>
-          navigation.navigate("checkArtistInfo/[id]", {
-            id: item.id,
-            name: item.name,
-          })
-        }
-      >
-        <Image
-          source={{ uri: item.images?.[0]?.url ?? "" }}
-          style={styles.userImage}
-        />
-        <Text style={styles.username}>{item.name}</Text>
-      </TouchableOpacity>
-      <Text style={styles.contentType}>Artist</Text>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{
-        height: 80, backgroundColor: "#262626",
-        alignItems: "center", top: 0, position: "absolute", width: "100%", display: "flex", flexDirection: "row", paddingHorizontal: 30, justifyContent: "space-between", zIndex: 10
-      }}>
-        {/* To be later replaced dynamic title */}
-        <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}> Search </Text>
+      {/* Header */}
+      <View
+        style={{
+          height: 80,
+          backgroundColor: "#262626",
+          alignItems: "center",
+          top: 0,
+          position: "absolute",
+          width: "100%",
+          flexDirection: "row",
+          paddingHorizontal: 30,
+          justifyContent: "space-between",
+          zIndex: 10,
+        }}
+      >
+        <Text style={{ color: "#F05858", fontWeight: "bold", fontSize: 20 }}>Search</Text>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Text style={{ color: "#F05858", fontWeight: "regular", fontStyle: "italic", fontSize: 12, marginRight: 10 }}>
-            {token ? `${token.user_id}` : "No Token"}
+          <Text
+            style={{
+              color: "#F05858",
+              fontWeight: "regular",
+              fontStyle: "italic",
+              fontSize: 12,
+              marginRight: 10,
+            }}
+          >
+            {token ? token.user_id : "No Token"}
           </Text>
           <MaterialIcons
-            name={token ? "person" : "login"} // Show "person" if token exists, otherwise "login"
+            name={token ? "person" : "login"}
             size={30}
             color="white"
             onPress={() => {
-              if (token) {
-                router.push("/profileScreen");
-              } else {
-                router.push("/loginScreen"); // Navigate to login screen
-              }
+              if (token) router.push("/profileScreen");
+              else router.push("/loginScreen");
             }}
           />
           <Ionicons
@@ -330,17 +366,16 @@ const SearchScreen: React.FC = () => {
             size={30}
             color="white"
             onPress={() => {
-              if (token) {
-                router.push("/FriendsScreen");
-              } else {
-                router.push("/loginScreen"); // Navigate to login screen
-              }
+              if (token) router.push("/FriendsScreen");
+              else router.push("/loginScreen");
             }}
           />
         </View>
       </View>
 
+      {/* Body */}
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Search bar + filtros */}
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
@@ -353,7 +388,6 @@ const SearchScreen: React.FC = () => {
           <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
             <MaterialIcons name="search" size={24} color="white" />
           </TouchableOpacity>
-          {/*Filter options*/}
           <TouchableOpacity
             onPress={() => {
               setPendingFilters(activeFilters);
@@ -365,11 +399,11 @@ const SearchScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/*<HistoryContainer />*/}
-
+        {/* Indicador de carga / error */}
         {loading && <ActivityIndicator size="large" color="#f05858" />}
         {!!error && <Text style={styles.errorText}>{error}</Text>}
 
+        {/* Usuarios */}
         {activeFilters.users && userResults.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Users</Text>
@@ -382,6 +416,7 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Artistas */}
         {activeFilters.artists && artists.length > 0 && (
           <View style={{ marginTop: 40, marginBottom: 40 }}>
             <Text style={styles.sectionTitle}>Artists</Text>
@@ -402,6 +437,7 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Pistas */}
         {activeFilters.tracks && tracks.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Tracks</Text>
@@ -422,6 +458,7 @@ const SearchScreen: React.FC = () => {
           </View>
         )}
 
+        {/* Álbumes */}
         {activeFilters.albums && albums.length > 0 && (
           <View style={{ marginTop: 40 }}>
             <Text style={styles.sectionTitle}>Albums</Text>
@@ -443,10 +480,8 @@ const SearchScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.openQueueButton}
-        onPress={() => setQueueModalVisible(true)}
-      >
+      {/* Botón cola y modal */}
+      <TouchableOpacity style={styles.openQueueButton} onPress={() => setQueueModalVisible(true)}>
         <MaterialIcons name="queue-music" size={30} color="white" />
       </TouchableOpacity>
       <QueueModal
@@ -476,32 +511,33 @@ const SearchScreen: React.FC = () => {
       <Modal visible={filtersVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {/* Close button */}
-            <TouchableOpacity onPress={() => setFiltersVisible(false)} style={styles.closeButton}>
+            <TouchableOpacity
+              onPress={() => setFiltersVisible(false)}
+              style={styles.closeButton}
+            >
               <Ionicons name="close" size={24} color="white" />
             </TouchableOpacity>
-
             <Text style={styles.modalTitle}>Filter results</Text>
-            {["users", "artists", "tracks", "albums"].map((key) => (
+            {(["users", "artists", "tracks", "albums"] as Array<
+              keyof typeof pendingFilters
+            >).map((key) => (
               <TouchableOpacity
                 key={key}
                 onPress={() =>
-                  setPendingFilters((prev) => ({
-                    ...prev,
-                    [key]: !prev[key as keyof typeof prev],
-                  }))
+                  setPendingFilters((prev) => ({ ...prev, [key]: !prev[key] }))
                 }
                 style={styles.filterOption}
               >
                 <MaterialIcons
-                  name={pendingFilters[key as keyof typeof pendingFilters] ? "check-box" : "check-box-outline-blank"}
+                  name={
+                    pendingFilters[key] ? "check-box" : "check-box-outline-blank"
+                  }
                   size={24}
                   color="white"
                 />
                 <Text style={styles.filterText}>{key}</Text>
               </TouchableOpacity>
             ))}
-            {/* Search button */}
             <TouchableOpacity
               onPress={() => {
                 setActiveFilters(pendingFilters);
@@ -519,18 +555,10 @@ const SearchScreen: React.FC = () => {
   );
 };
 
+// Estilos (igual que antes)
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-    width: "100%",
-  },
-  scrollContainer: {
-    padding: 20,
-    flexGrow: 1,
-    marginTop: 80,
-    marginBottom: 140
-  },
+  container: { flex: 1, backgroundColor: "#121212", width: "100%" },
+  scrollContainer: { padding: 20, flexGrow: 1, marginTop: 80, marginBottom: 140 },
   searchContainer: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   searchInput: {
     flex: 1,
@@ -542,12 +570,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     color: "black",
   },
-  searchButton: {
-    backgroundColor: "#F05858",
-    borderRadius: 40,
-    padding: 9,
-    marginLeft: 10,
-  },
+  searchButton: { backgroundColor: "#F05858", borderRadius: 40, padding: 9, marginLeft: 10 },
   resultItem: { backgroundColor: "#262626", padding: 20, borderRadius: 8, marginVertical: 10 },
   userInfo: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
   userImage: { width: 50, height: 50, borderRadius: 25, marginRight: 15 },
@@ -555,9 +578,9 @@ const styles = StyleSheet.create({
   contentType: { fontSize: 14, color: "white", fontStyle: "italic", marginTop: 5 },
   friendRequestButton: {
     backgroundColor: "#1DB954",
-    padding: 10,
+    padding: 8,
     borderRadius: 5,
-    marginTop: 10
+    marginTop: 10,
   },
   buttonText: { color: "white", fontWeight: "bold" },
   sectionTitle: { fontSize: 22, color: "#f05858", fontWeight: "bold" },
@@ -579,7 +602,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "absolute",
     bottom: 140,
-    right: 20
+    right: 20,
   },
   openRankingButton: {
     backgroundColor: "#F05858",
